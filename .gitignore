@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 # Flask
-instance/
+db/
 .webassets-cache
 *.db  # messenger.db
 

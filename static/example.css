@@ -1,0 +1,178 @@
+/* ===== БАЗОВЫЕ НАСТРОЙКИ ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a1a;  /* тёмно-серый */
+    color: #ffffff;              /* белый текст */
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+/* ===== ШАПКА И ПОДВАЛ ===== */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #000000;         /* чёрный */
+    border-radius: 10px;
+    border: 2px solid #ff033e;   /* красно-розовый */
+}
+
+header h1 {
+    color: #ff033e;              /* красно-розовый */
+    margin-bottom: 10px;
+}
+
+header a {
+    color: #ff033e;
+    text-decoration: none;
+}
+
+header a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    color: #888;
+    font-size: 0.9em;
+}
+
+/* ===== ФОРМЫ АВТОРИЗАЦИИ ===== */
+.auth-form {
+    background: #2a2a2a;         /* тёмно-серый */
+    padding: 25px;
+    border-radius: 10px;
+    border: 1px solid #444;
+}
+
+.auth-form h2 {
+    text-align: center;
+    color: #ff033e;              /* красно-розовый */
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #444;
+    border-radius: 5px;
+    background: #000000;         /* чёрный фон инпутов */
+    color: #ffffff;              /* белый текст */
+    font-size: 16px;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #ff033e;       /* красно-розовый при фокусе */
+}
+
+.form-group.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-group.checkbox input {
+    width: auto;
+}
+
+/* ===== КНОПКИ ===== */
+.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-primary {
+    background: #ff033e;         /* красно-розовый */
+    color: #000000;              /* чёрный текст */
+}
+
+.btn-primary:hover {
+    background: #cc0231;         /* тёмный красно-розовый при наведении */
+}
+
+/* ===== СООБЩЕНИЯ ===== */
+.alert {
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    font-weight: 500;
+}
+
+.alert-error {
+    background: #4a1a1a;
+    border: 1px solid #ff4444;
+    color: #ffaaaa;
+}
+
+.alert-success {
+    background: #1a4a2a;
+    border: 1px solid #44ff88;
+    color: #aaffcc;
+}
+
+.alert-info {
+    background: #1a2a4a;
+    border: 1px solid #88aaff;
+    color: #ccddee;
+}
+
+/* ===== ПЕРЕКЛЮЧЕНИЕ ФОРМ ===== */
+.switch-form {
+    text-align: center;
+    margin-top: 20px;
+    color: #aaa;
+}
+
+.switch-form a {
+    color: #ff033e;              /* красно-розовый */
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.switch-form a:hover {
+    text-decoration: underline;
+}
+
+/* ===== АДАПТИВ ===== */
+@media (max-width: 500px) {
+    .container {
+        padding: 10px;
+    }
+
+    .auth-form {
+        padding: 20px 15px;
+    }
+}

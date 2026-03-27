@@ -11,11 +11,10 @@ def register():
 
     if request.method == 'POST':
         username = request.form.get('username')
-        email = request.form.get('email')
         password = request.form.get('password')
         password2 = request.form.get('password2')
 
-        if not username or not email or not password:
+        if not username or not password:
             flash('Заполните все поля!', 'error')
             return redirect(url_for('auth.register'))
 
@@ -27,11 +26,7 @@ def register():
             flash('Такой пользователь уже есть!', 'error')
             return redirect(url_for('auth.register'))
 
-        if User.query.filter_by(email=email).first():
-            flash('Email уже зарегистрирован!', 'error')
-            return redirect(url_for('auth.register'))
-
-        user = User(username=username, email=email)
+        user = User(username=username)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
@@ -48,14 +43,11 @@ def login():
         return redirect(url_for('chat.index'))
 
     if request.method == 'POST':
-        username_or_email = request.form.get('username_or_email')
+        username = request.form.get('username')
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
 
-        user = User.query.filter(
-            (User.username == username_or_email) |
-            (User.email == username_or_email)
-        ).first()
+        user = User.query.filter_by(username=username).first()
 
         if user and user.check_password(password):
             login_user(user, remember=remember)

@@ -1,0 +1,12 @@
+<!-- templates/chat/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Чат{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <h2>Привет, {{ current_user.username }}!</h2>
+    <p>Это главная страница чата</p>
+    <a href="{{ url_for('auth.logout') }}">Выйти</a>
+</div>
+{% endblock %}

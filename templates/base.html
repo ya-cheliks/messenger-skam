@@ -1,10 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Messenger SKAM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='example.css') }}">
 </head>
 <body>
+    <div class="container">
+        <header>
+            <h1>Messenger SKAM</h1>
+            {% if current_user.is_authenticated %}
+                <p>Привет, {{ current_user.username }}! <a href="{{ url_for('auth.logout') }}">Выйти</a></p>
+            {% endif %}
+        </header>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer>
+            <p>Разработано лучшими лицеистами 2026</p>
+        </footer>
+    </div>
 </body>
 </html>

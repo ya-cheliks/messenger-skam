@@ -1,7 +1,9 @@
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from auth import auth  # абсолютный импорт
-from models import db, User  # абсолютный импорт (убрали ..)
+from data import db_session
+from data.model_user import User
+from data.model_chat import Chat
 
 
 @auth.route('/register', methods=['GET', 'POST'])
@@ -22,14 +24,18 @@ def register():
             flash('Пароли не совпадают!', 'error')
             return redirect(url_for('auth.register'))
 
-        if User.query.filter_by(username=username).first():
+        session = db_session.create_session()
+        user = session.query(User).filter_by(username=username).first()
+
+        if user:
             flash('Такой пользователь уже есть!', 'error')
             return redirect(url_for('auth.register'))
 
         user = User(username=username)
         user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
+        session.add(user)
+        session.commit()
+
 
         flash('Регистрация прошла успешно! Теперь войдите.', 'success')
         return redirect(url_for('auth.login'))
@@ -47,7 +53,8 @@ def login():
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
 
-        user = User.query.filter_by(username=username).first()
+        session = db_session.create_session()
+        user = session.query(User).filter_by(username=username).first()
 
         if user and user.check_password(password):
             login_user(user, remember=remember)
@@ -55,6 +62,7 @@ def login():
             return redirect(next_page) if next_page else redirect(url_for('chat.index'))
         else:
             flash('Неверный логин или пароль', 'error')
+        session.close()
 
     return render_template('auth/login.html')
 

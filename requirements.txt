@@ -6,3 +6,5 @@ flask-bootstrap
 sqlalchemy
 Werkzeug
 python-dotenv
+sqlalchemy_serializer
+flask-restful

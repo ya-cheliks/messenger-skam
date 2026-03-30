@@ -2,10 +2,10 @@ from flask_restful import reqparse, abort, Api, Resource
 from data import db_session
 from flask import jsonify
 from werkzeug.security import generate_password_hash
-from data.users_model import User
-from data.chats_model import Chat
-from data.messages_model import Messages
-from api import parser
+from data.model_user import User
+from data.model_chat import Chat
+from data.model_message import Message
+from api import user_parser, chat_parser
 
 
 class UserResource(Resource):
@@ -22,7 +22,8 @@ class UserResource(Resource):
         })
 
     def post(self):
-        args = parser.parse_args()  # username, password
+        args = user_parser.parse_args()  # username, password
+        print(args)
         session = db_session.create_session()
         user = User(
             username=args['username'],
@@ -57,9 +58,9 @@ class ChatResource(Resource):
         session = db_session.create_session()
         chat = session.query(Chat).get(chat_id)
         # Получаем последние 100 сообщений чата
-        messages = session.query(Messages).filter(
-            Messages.chat_id == chat_id
-        ).order_by(Messages.timestamp.desc()).limit(100).all()
+        messages = session.query(Message).filter(
+            Message.chat_id == chat_id
+        ).order_by(Message.timestamp.desc()).limit(100).all()
 
         return jsonify({
             'chat': chat.to_dict(only=('id', 'name', 'is_private', 'created_at')),
@@ -69,7 +70,8 @@ class ChatResource(Resource):
         })
 
     def post(self):
-        args = parser.parse_args()  # name, users_id="1 2 3", is_private
+        args = chat_parser.parse_args()  # name, users_id="1 2 3", is_private
+        open('t.txt', 'w').write(args)
         session = db_session.create_session()
         chat = Chat(
             name=args['name'],

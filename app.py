@@ -1,14 +1,20 @@
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
-from models import Chat, User
-from api import api
+from data.model_chat import Chat
+from data.model_user import User
 from werkzeug.utils import secure_filename
 import os
+from data import db_session
+from auth import auth
+from chat import chat
+from flask_restful import Api
+from resources import UserResource, ChatResource
 
 # Глобальные объекты
 db = SQLAlchemy()
+db_session.global_init('db/skam.db')
 login_manager = LoginManager()
 login_manager.login_view = 'auth.login'
 
@@ -17,10 +23,13 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+    api = Api(app)
+    api.add_resource(UserResource, '/api/users', '/api/users/<int:user_id>')
+    api.add_resource(ChatResource, '/api/chats', '/api/chats/<int:chat_id>')
+
     # Инициализация
     db.init_app(app)
     login_manager.init_app(app)
-    api.init_app(app)
 
     # Создание папки для файлов
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -28,15 +37,16 @@ def create_app():
     # Flask-Login loader
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        session = db_session.create_session()
+        return session.get(User, user_id)
 
-    with app.app_context():
-        db.create_all()  # Создаёт таблицы
+    app.register_blueprint(auth)
 
-        # Тестовые данные (если нужно будет - добавлю, елки палки)
-        if not User.query.first():
-            # Создать тестового юзера
-            pass
+    app.register_blueprint(chat)
+
+    @app.route('/')
+    def index():
+        return redirect(url_for('auth.login'))
 
     return app
 

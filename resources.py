@@ -35,7 +35,7 @@ class UserResource(Resource):
             'id': user.id,
             'username': user.username,
             'status': 'registered'
-        }), 201
+        })
 
     def delete(self, user_id):
         self.abort_if_user_not_found(user_id)

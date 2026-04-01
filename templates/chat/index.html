@@ -1,12 +1,141 @@
-<!-- templates/chat/index.html -->
 {% extends "base.html" %}
 
-{% block title %}Чат{% endblock %}
+{% block title %}Мои чаты{% endblock %}
 
 {% block content %}
-<div class="chat-container">
-    <h2>Привет, {{ current_user.username }}!</h2>
-    <p>Это главная страница чата</p>
-    <a href="{{ url_for('auth.logout') }}">Выйти</a>
+<div class="chats-container">
+    <div class="chats-header">
+        <h2>Мои чаты</h2>
+        <button class="btn btn-primary" onclick="createNewChat()">+ Новый чат</button>
+    </div>
+
+    <div id="chats-list" class="chats-list">
+        <!-- Чаты загрузятся через JS -->
+        <div class="loading">Загрузка чатов...</div>
+    </div>
 </div>
+
+<!-- Модальное окно создания чата -->
+<div id="create-chat-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Создать новый чат</h3>
+        <form id="create-chat-form">
+            <div class="form-group">
+                <label>Название чата:</label>
+                <input type="text" id="chat-name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>Участники (ID через пробел):</label>
+                <input type="text" id="chat-users" name="users_id" placeholder="1 2 3" required>
+            </div>
+            <div class="form-group checkbox">
+                <input type="checkbox" id="chat-private" name="is_private" checked>
+                <label for="chat-private">Приватный чат</label>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Загрузка списка чатов при открытии страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadUserChats();
+});
+
+// Загрузка чатов текущего пользователя через API
+async function loadUserChats() {
+    try {
+        // Получаем ID текущего пользователя (из data-атрибута или храним в localStorage)
+        const userId = {{ current_user.id }};
+
+        const response = await fetch(`/api/users/${userId}`);
+        if (!response.ok) throw new Error('Ошибка загрузки');
+
+        const data = await response.json();
+        renderChatsList(data.chats);
+
+    } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('chats-list').innerHTML =
+            '<div class="error">Не удалось загрузить чаты 😔</div>';
+    }
+}
+
+// Отрисовка списка чатов
+function renderChatsList(chats) {
+    const container = document.getElementById('chats-list');
+
+    if (!chats || chats.length === 0) {
+        container.innerHTML = '<div class="empty">У вас пока нет чатов</div>';
+        return;
+    }
+
+    container.innerHTML = chats.map(chat => `
+        <div class="chat-item" onclick="openChat(${chat.id})">
+            <div class="chat-info">
+                <h4>${escapeHtml(chat.name)}</h4>
+                <span class="chat-preview">Нажмите чтобы открыть</span>
+            </div>
+            <span class="chat-arrow">→</span>
+        </div>
+    `).join('');
+}
+
+// Открытие конкретного чата
+function openChat(chatId) {
+    window.location.href = `/chat/${chatId}`;
+}
+
+// Создание нового чата
+document.getElementById('create-chat-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = {
+        name: document.getElementById('chat-name').value,
+        users_id: document.getElementById('chat-users').value,
+        is_private: document.getElementById('chat-private').checked
+    };
+
+    try {
+        const response = await fetch('/api/chats', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeModal();
+            loadUserChats(); // Обновить список
+        } else {
+            alert('Ошибка создания чата');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Не удалось создать чат');
+    }
+});
+
+// Управление модальным окном
+function createNewChat() {
+    document.getElementById('create-chat-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('create-chat-modal').style.display = 'none';
+    document.getElementById('create-chat-form').reset();
+}
+
+// Защита от XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 {% endblock %}

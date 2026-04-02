@@ -10,7 +10,6 @@
     </div>
 
     <div id="chats-list" class="chats-list">
-        <!-- Чаты загрузятся через JS -->
         <div class="loading">Загрузка чатов...</div>
     </div>
 </div>
@@ -22,15 +21,18 @@
         <form id="create-chat-form">
             <div class="form-group">
                 <label>Название чата:</label>
-                <input type="text" id="chat-name" name="name" required>
+                <input type="text" id="chat-name" name="name" required placeholder="Введите название">
             </div>
             <div class="form-group">
                 <label>Участники (ID через пробел):</label>
                 <input type="text" id="chat-users" name="users_id" placeholder="1 2 3" required>
+                <small style="color: #888; display: block; margin-top: 5px;">
+                    💡 Ваш ID: {{ current_user.id }} — добавьте его в список!
+                </small>
             </div>
             <div class="form-group checkbox">
-                <input type="checkbox" id="chat-private" name="is_private" checked>
-                <label for="chat-private">Приватный чат</label>
+                <input type="checkbox" id="chat-private" name="is_private">
+                <label for="chat-private">Приватный чат (только для участников)</label>
             </div>
             <div class="modal-buttons">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
@@ -51,19 +53,18 @@ document.addEventListener('DOMContentLoaded', function() {
 // Загрузка чатов текущего пользователя через API
 async function loadUserChats() {
     try {
-        // Получаем ID текущего пользователя (из data-атрибута или храним в localStorage)
         const userId = {{ current_user.id }};
 
         const response = await fetch(`/api/users/${userId}`);
         if (!response.ok) throw new Error('Ошибка загрузки');
 
         const data = await response.json();
-        renderChatsList(data.chats);
+        renderChatsList(data.chats || []);
 
     } catch (error) {
         console.error('Ошибка:', error);
         document.getElementById('chats-list').innerHTML =
-            '<div class="error">Не удалось загрузить чаты 😔</div>';
+            '<div class="error">Не удалось загрузить чаты 😔<br>Проверьте консоль (F12)</div>';
     }
 }
 
@@ -72,7 +73,7 @@ function renderChatsList(chats) {
     const container = document.getElementById('chats-list');
 
     if (!chats || chats.length === 0) {
-        container.innerHTML = '<div class="empty">У вас пока нет чатов</div>';
+        container.innerHTML = '<div class="empty">У вас пока нет чатов<br>Создайте первый чат!</div>';
         return;
     }
 
@@ -96,11 +97,25 @@ function openChat(chatId) {
 document.getElementById('create-chat-form').addEventListener('submit', async function(e) {
     e.preventDefault();
 
+    // Получаем значения
+    const name = document.getElementById('chat-name').value;
+    const usersInput = document.getElementById('chat-users').value;
+    const isPrivate = document.getElementById('chat-private').checked;
+
+    // Добавляем текущего пользователя в список, если его нет
+    const currentUserId = {{ current_user.id }};
+    const userIds = usersInput.split(/\s+/).filter(id => id); // разбиваем по пробелам
+    if (!userIds.includes(String(currentUserId))) {
+        userIds.push(String(currentUserId));
+    }
+
     const formData = {
-        name: document.getElementById('chat-name').value,
-        users_id: document.getElementById('chat-users').value,
-        is_private: document.getElementById('chat-private').checked
+        name: name,
+        users_id: userIds.join(' '),  // "1 2 3"
+        is_private: isPrivate
     };
+
+    console.log('Sending:', formData);  // отладка
 
     try {
         const response = await fetch('/api/chats', {
@@ -111,18 +126,20 @@ document.getElementById('create-chat-form').addEventListener('submit', async fun
 
         if (response.ok) {
             closeModal();
-            loadUserChats(); // Обновить список
+            loadUserChats();  // обновляем список
         } else {
-            alert('Ошибка создания чата');
+            const errorData = await response.json();
+            alert('Ошибка: ' + (errorData.error || 'Не удалось создать чат'));
         }
     } catch (error) {
         console.error('Ошибка:', error);
-        alert('Не удалось создать чат');
+        alert('Не удалось создать чат. Проверьте консоль (F12)');
     }
 });
 
 // Управление модальным окном
 function createNewChat() {
+    console.log('Открываем модальное окно...');
     document.getElementById('create-chat-modal').style.display = 'flex';
 }
 
@@ -137,5 +154,12 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Закрытие по клику вне окна
+document.getElementById('create-chat-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
 </script>
 {% endblock %}

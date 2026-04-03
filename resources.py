@@ -128,9 +128,21 @@ class MessageResource(Resource):
         session.commit()
         return jsonify({'message': message.to_dict(only=('content', 'timestamp'))})
 
+    def delete(self, message_id):
+        self.abort_if_message_not_found(message_id)
+        session = db_session.create_session()
+        message = session.query(Message).get(message_id)
+        session.delete(message)
+        session.commit()
 
     def abort_if_chat_not_found(self, chat_id):
         session = db_session.create_session()
         chat = session.query(Chat).get(chat_id)
         if not chat:
             abort(404, message=f"Chat {chat_id} not found")
+
+    def abort_if_message_not_found(self, message_id):
+        session = db_session.create_session()
+        chat = session.query(Chat).get(message_id)
+        if not chat:
+            abort(404, message=f"Chat {message_id} not found")

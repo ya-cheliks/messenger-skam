@@ -106,11 +106,9 @@ class ChatResource(Resource):
 
 class MessageResource(Resource):
     def get(self, chat_id):
-        print('chat_id', type(chat_id))
         self.abort_if_chat_not_found(chat_id)
         session = db_session.create_session()
         chat = session.query(Message).filter_by(chat_id=chat_id).limit(100).all()
-        print(chat)
         return jsonify({'messages': [mes.to_dict(only=('content', 'timestamp')) for mes in chat]})
 
     def post(self, chat_id):
@@ -134,6 +132,7 @@ class MessageResource(Resource):
         message = session.query(Message).get(message_id)
         session.delete(message)
         session.commit()
+        return jsonify({'success': 'OK'})
 
     def abort_if_chat_not_found(self, chat_id):
         session = db_session.create_session()

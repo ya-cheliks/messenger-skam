@@ -10,7 +10,7 @@ from data import db_session
 from auth import auth
 from chat import chat
 from flask_restful import Api
-from resources import UserResource, ChatResource
+from resources import UserResource, ChatResource, MessageResource
 
 # Глобальные объекты
 db = SQLAlchemy()
@@ -26,6 +26,7 @@ def create_app():
     api = Api(app)
     api.add_resource(UserResource, '/api/users', '/api/users/<int:user_id>')
     api.add_resource(ChatResource, '/api/chats', '/api/chats/<int:chat_id>')
+    api.add_resource(MessageResource, '/api/chats/messages/<int:chat_id>', '/api/messages/<int:message_id>')
 
     # Инициализация
     db.init_app(app)

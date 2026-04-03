@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash
 from data.model_user import User
 from data.model_chat import Chat
 from data.model_message import Message
-from api import user_parser, chat_parser
+from api import user_parser, chat_parser, message_parser
 
 
 class UserResource(Resource):
@@ -34,7 +34,6 @@ class UserResource(Resource):
 
     def post(self):
         args = user_parser.parse_args()
-        print(args)
         session = db_session.create_session()
         user = User(
             username=args['username'],
@@ -64,29 +63,22 @@ class UserResource(Resource):
 
 
 class ChatResource(Resource):
-    def get(self, chat_id):
-        self.abort_if_chat_not_found(chat_id)
+    def get(self):
+        """возвращает список всех открытых чатов"""
         session = db_session.create_session()
-        chat = session.query(Chat).get(chat_id)
-        # Получаем последние 100 сообщений чата
-        messages = session.query(Message).filter(
-            Message.chat_id == chat_id
-        ).order_by(Message.timestamp.desc()).limit(100).all()
-
-        return jsonify({
-            'chat': chat.to_dict(only=('id', 'name', 'is_private', 'created_at')),
-            'users_count': len([int(uid) for uid in chat.users_id.split() if uid]),
-            'messages': [msg.to_dict(only=('id', 'content', 'sender_id', 'timestamp'))
-                         for msg in messages]
-        })
+        chats = session.query(Chat).filter_by(is_private=False).all()
+        print(chats)
+        if not chats:
+            abort(404, message=f"Chats not found")
+        return jsonify({'chats': [chat.to_dict(only=('id', 'name', 'is_private')) for chat in chats]})
 
     def post(self):
-        args = chat_parser.parse_args()  # name, users_id="1 2 3", is_private
+        args = chat_parser.parse_args()
         session = db_session.create_session()
         chat = Chat(
             name=args['name'],
-            users_id=args['users_id'],  # "1 2 3"
-            is_private=args.get('is_private', False)  #
+            users_id=args['users_id'],
+            is_private=args.get('is_private', False)
         )
         session.add(chat)
         session.commit()
@@ -95,7 +87,7 @@ class ChatResource(Resource):
             'name': chat.name,
             'is_private': chat.is_private,
             'status': 'created'
-        }), 201
+        })
 
     def delete(self, chat_id):
         self.abort_if_chat_not_found(chat_id)
@@ -104,6 +96,38 @@ class ChatResource(Resource):
         session.delete(chat)
         session.commit()
         return jsonify({'success': 'OK'})
+
+    def abort_if_chat_not_found(self, chat_id):
+        session = db_session.create_session()
+        chat = session.query(Chat).get(chat_id)
+        if not chat:
+            abort(404, message=f"Chat {chat_id} not found")
+
+
+class MessageResource(Resource):
+    def get(self, chat_id):
+        print('chat_id', type(chat_id))
+        self.abort_if_chat_not_found(chat_id)
+        session = db_session.create_session()
+        chat = session.query(Message).filter_by(chat_id=chat_id).limit(100).all()
+        print(chat)
+        return jsonify({'messages': [mes.to_dict(only=('content', 'timestamp')) for mes in chat]})
+
+    def post(self, chat_id):
+        self.abort_if_chat_not_found(chat_id)
+        args = message_parser.parse_args()
+        session = db_session.create_session()
+        message = Message(
+            content=args['content'],
+            chat_id=chat_id,
+            sender_id=args['sender_id'],
+            picture=args['picture'],
+            coordinates=args['coordinates']
+        )
+        session.add(message)
+        session.commit()
+        return jsonify({'message': message.to_dict(only=('content', 'timestamp'))})
+
 
     def abort_if_chat_not_found(self, chat_id):
         session = db_session.create_session()

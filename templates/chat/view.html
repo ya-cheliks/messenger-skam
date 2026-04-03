@@ -3,167 +3,114 @@
 {% block title %}{{ chat_name or 'Чат' }}{% endblock %}
 
 {% block content %}
-<div class="chat-view">
-    <!-- Шапка чата -->
-    <div class="chat-header">
-        <button class="btn-back" onclick="goBack()">← Назад</button>
-        <h3 id="chat-title">Загрузка...</h3>
-        <span id="chat-users-count" class="users-count"></span>
+<div class="container" style="max-width: 900px; padding: 20px;">
+    <div class="chat-view">
+        <div class="chat-header">
+            <a href="{{ url_for('chat.index') }}" class="btn-back">←</a>
+            <h2 id="chat-title">{{ chat_name }}</h2>
+            <span class="users-count">Чат</span>
+        </div>
+
+        <div class="messages-container" id="messages">
+            <div class="loading">Загрузка сообщений...</div>
+        </div>
+
+        <form class="message-form" id="message-form">
+            <input type="text" id="message-input" placeholder="Написать сообщение..." required autocomplete="off">
+            <button type="submit" class="btn-send">➤</button>
+        </form>
     </div>
-    
-    <!-- Область сообщений -->
-    <div id="messages-container" class="messages-container">
-        <div class="loading">Загрузка сообщений...</div>
-    </div>
-    
-    <!-- Форма отправки -->
-    <form id="message-form" class="message-form">
-        <input type="text" id="message-input" placeholder="Введите сообщение..." autocomplete="off">
-        <button type="submit" class="btn-send">➤</button>
-    </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 const chatId = {{ chat_id }};
-const currentUserId = {{ current_user.id }};
+const messagesDiv = document.getElementById('messages');
+const messageForm = document.getElementById('message-form');
+const messageInput = document.getElementById('message-input');
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadChat();
-    
-    // Отправка сообщения
-    document.getElementById('message-form').addEventListener('submit', sendMessage);
-    
-    // Авто-скролл вниз
-    scrollToBottom();
-});
-
-// Загрузка чата и сообщений
-async function loadChat() {
+// Загрузка сообщений
+async function loadMessages() {
     try {
-        const response = await fetch(`/api/chats/${chatId}`);
-        if (!response.ok) throw new Error('Чат не найден');
-        
+        const response = await fetch(`/chat/api/messages/${chatId}`);
         const data = await response.json();
-        
-        // Обновляем заголовок
-        document.getElementById('chat-title').textContent = data.chat.name;
-        document.getElementById('chat-users-count').textContent = 
-            `Участников: ${data.users_count}`;
-        
-        // Отрисовываем сообщения
-        renderMessages(data.messages);
-        
-    } catch (error) {
-        console.error('Ошибка:', error);
-        document.getElementById('messages-container').innerHTML = 
-            '<div class="error">Не удалось загрузить чат</div>';
-    }
-}
 
-// Отрисовка сообщений
-function renderMessages(messages) {
-    const container = document.getElementById('messages-container');
-    
-    if (!messages || messages.length === 0) {
-        container.innerHTML = '<div class="empty-msg">Сообщений пока нет</div>';
-        return;
+        messagesDiv.innerHTML = '';
+
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message other';
+
+                let time = '';
+                if (msg.timestamp) {
+                    time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+
+                msgDiv.innerHTML = `
+                    <div class="message-content">${msg.content}</div>
+                    <div class="message-meta">
+                        <span class="message-time">${time}</span>
+                    </div>
+                `;
+                messagesDiv.appendChild(msgDiv);
+            });
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        } else {
+            messagesDiv.innerHTML = '<div class="empty-msg">Нет сообщений. Будьте первым!</div>';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        messagesDiv.innerHTML = '<div class="error">Ошибка загрузки сообщений</div>';
     }
-    
-    // Сортируем по времени (старые сверху)
-    const sorted = [...messages].reverse();
-    
-    container.innerHTML = sorted.map(msg => {
-        const isMine = msg.sender_id === currentUserId;
-        const time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
-            hour: '2-digit', minute: '2-digit'
-        });
-        
-        return `
-            <div class="message ${isMine ? 'mine' : 'other'}">
-                <div class="message-content">
-                    ${escapeHtml(msg.content)}
-                </div>
-                <div class="message-meta">
-                    <span class="message-time">${time}</span>
-                    ${!isMine ? `<span class="message-sender">#${msg.sender_id}</span>` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    scrollToBottom();
 }
 
 // Отправка сообщения
-async function sendMessage(e) {
+messageForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    const input = document.getElementById('message-input');
-    const content = input.value.trim();
-    
+
+    const content = messageInput.value.trim();
     if (!content) return;
-    
+
+    const btn = messageForm.querySelector('.btn-send');
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+
     try {
-        // В реальном проекте здесь нужен POST /api/messages
-        // Пока делаем заглушку - перезагружаем чат
-        input.value = '';
-        
-        // Для демо: показываем своё сообщение сразу
-        addLocalMessage(content);
-        
-        // Перезагружаем чат через 500мс (как будто сообщение ушло на сервер)
-        setTimeout(loadChat, 500);
-        
+        const response = await fetch('/chat/api/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                content: content
+            })
+        });
+
+        if (response.ok) {
+            messageInput.value = '';
+            await loadMessages();
+        } else {
+            const errorData = await response.json();
+            alert('Ошибка: ' + (errorData.error || 'Неизвестная ошибка'));
+        }
     } catch (error) {
         console.error('Ошибка отправки:', error);
         alert('Не удалось отправить сообщение');
+    } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        messageInput.focus();
     }
-}
+});
 
-// Добавление сообщения локально (для мгновенного отображения)
-function addLocalMessage(content) {
-    const container = document.getElementById('messages-container');
-    const empty = container.querySelector('.empty-msg');
-    if (empty) empty.remove();
-    
-    const time = new Date().toLocaleTimeString('ru-RU', {
-        hour: '2-digit', minute: '2-digit'
-    });
-    
-    const msgHtml = `
-        <div class="message mine">
-            <div class="message-content">${escapeHtml(content)}</div>
-            <div class="message-meta">
-                <span class="message-time">${time}</span>
-            </div>
-        </div>
-    `;
-    
-    container.insertAdjacentHTML('beforeend', msgHtml);
-    scrollToBottom();
-}
-
-// Скролл в конец
-function scrollToBottom() {
-    const container = document.getElementById('messages-container');
-    container.scrollTop = container.scrollHeight;
-}
-
-// Кнопка назад
-function goBack() {
-    window.location.href = '/chat/';
-}
-
-// Защита от XSS
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Авто-обновление каждые 30 сек (опционально)
-// setInterval(loadChat, 30000);
+// Инициализация
+loadMessages();
+setInterval(loadMessages, 3000);
 </script>
 {% endblock %}

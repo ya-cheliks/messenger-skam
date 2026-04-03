@@ -3,39 +3,66 @@
 {% block title %}Мои чаты{% endblock %}
 
 {% block content %}
-<div class="chats-container">
-    <div class="chats-header">
-        <h2>Мои чаты</h2>
-        <button class="btn btn-primary" onclick="createNewChat()">+ Новый чат</button>
-    </div>
+<div class="container">
+    <header>
+        <h1>SKAM Messenger</h1>
+        <p>Добро пожаловать, {{ current_user.username }}!</p>
+    </header>
 
-    <div id="chats-list" class="chats-list">
-        <div class="loading">Загрузка чатов...</div>
+    <div class="chats-container">
+        <div class="chats-header">
+            <h2>Ваши чаты</h2>
+            <button onclick="document.getElementById('create-modal').style.display='flex'"
+                    class="btn btn-primary" style="width: auto; padding: 12px 25px;">
+                + Новый чат
+            </button>
+        </div>
+
+        <div class="chats-list">
+            {% if chats %}
+                {% for chat in chats %}
+                    <a href="{{ url_for('chat.view', chat_id=chat.id) }}" class="chat-item">
+                        <div class="chat-info">
+                            <h4>{{ chat.name }}</h4>
+                            <span class="chat-preview">
+                                {% if chat.is_private %}🔒 Приватный{% else %}🌐 Открытый{% endif %}
+                            </span>
+                        </div>
+                        <div class="chat-arrow">→</div>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty">У вас пока нет чатов</div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
-<!-- Модальное окно создания чата -->
-<div id="create-chat-modal" class="modal" style="display: none;">
+<!-- Модальное окно -->
+<div id="create-modal" class="modal" style="display: none;">
     <div class="modal-content">
         <h3>Создать новый чат</h3>
         <form id="create-chat-form">
             <div class="form-group">
                 <label>Название чата:</label>
-                <input type="text" id="chat-name" name="name" required placeholder="Введите название">
+                <input type="text" id="chat-name" placeholder="Например: Общие новости" required>
             </div>
+
             <div class="form-group">
                 <label>Участники (ID через пробел):</label>
-                <input type="text" id="chat-users" name="users_id" placeholder="1 2 3" required>
-                <small style="color: #888; display: block; margin-top: 5px;">
-                    💡 Ваш ID: {{ current_user.id }} — добавьте его в список!
-                </small>
+                <textarea id="chat-users" rows="3" required
+                          style="width: 100%; padding: 10px; border-radius: 5px; background: #000; color: #fff; border: 2px solid #444;">{{ current_user.id }}</textarea>
+                <small style="color: #888;">💡 Ваш ID: {{ current_user.id }}</small>
             </div>
+
             <div class="form-group checkbox">
-                <input type="checkbox" id="chat-private" name="is_private">
-                <label for="chat-private">Приватный чат (только для участников)</label>
+                <input type="checkbox" id="chat-private" value="true">
+                <label for="chat-private">Приватный чат</label>
             </div>
+
             <div class="modal-buttons">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+                <button type="button" onclick="document.getElementById('create-modal').style.display='none'"
+                        class="btn btn-secondary">Отмена</button>
                 <button type="submit" class="btn btn-primary">Создать</button>
             </div>
         </form>
@@ -45,120 +72,31 @@
 
 {% block scripts %}
 <script>
-// Загрузка списка чатов при открытии страницы
-document.addEventListener('DOMContentLoaded', function() {
-    loadUserChats();
-});
-
-// Загрузка чатов текущего пользователя через API
-async function loadUserChats() {
-    try {
-        const userId = {{ current_user.id }};
-
-        const response = await fetch(`/api/users/${userId}`);
-        if (!response.ok) throw new Error('Ошибка загрузки');
-
-        const data = await response.json();
-        renderChatsList(data.chats || []);
-
-    } catch (error) {
-        console.error('Ошибка:', error);
-        document.getElementById('chats-list').innerHTML =
-            '<div class="error">Не удалось загрузить чаты 😔<br>Проверьте консоль (F12)</div>';
-    }
-}
-
-// Отрисовка списка чатов
-function renderChatsList(chats) {
-    const container = document.getElementById('chats-list');
-
-    if (!chats || chats.length === 0) {
-        container.innerHTML = '<div class="empty">У вас пока нет чатов<br>Создайте первый чат!</div>';
-        return;
-    }
-
-    container.innerHTML = chats.map(chat => `
-        <div class="chat-item" onclick="openChat(${chat.id})">
-            <div class="chat-info">
-                <h4>${escapeHtml(chat.name)}</h4>
-                <span class="chat-preview">Нажмите чтобы открыть</span>
-            </div>
-            <span class="chat-arrow">→</span>
-        </div>
-    `).join('');
-}
-
-// Открытие конкретного чата
-function openChat(chatId) {
-    window.location.href = `/chat/${chatId}`;
-}
-
-// Создание нового чата
 document.getElementById('create-chat-form').addEventListener('submit', async function(e) {
     e.preventDefault();
 
-    // Получаем значения
-    const name = document.getElementById('chat-name').value;
-    const usersInput = document.getElementById('chat-users').value;
-    const isPrivate = document.getElementById('chat-private').checked;
-
-    // Добавляем текущего пользователя в список, если его нет
-    const currentUserId = {{ current_user.id }};
-    const userIds = usersInput.split(/\s+/).filter(id => id); // разбиваем по пробелам
-    if (!userIds.includes(String(currentUserId))) {
-        userIds.push(String(currentUserId));
-    }
-
     const formData = {
-        name: name,
-        users_id: userIds.join(' '),  // "1 2 3"
-        is_private: isPrivate
+        name: document.getElementById('chat-name').value,
+        users_id: document.getElementById('chat-users').value,
+        is_private: document.getElementById('chat-private').checked
     };
-
-    console.log('Sending:', formData);  // отладка
 
     try {
         const response = await fetch('/api/chats', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(formData)
         });
 
         if (response.ok) {
-            closeModal();
-            loadUserChats();  // обновляем список
+            location.reload();
         } else {
-            const errorData = await response.json();
-            alert('Ошибка: ' + (errorData.error || 'Не удалось создать чат'));
+            alert('Ошибка при создании чата');
         }
     } catch (error) {
-        console.error('Ошибка:', error);
-        alert('Не удалось создать чат. Проверьте консоль (F12)');
-    }
-});
-
-// Управление модальным окном
-function createNewChat() {
-    console.log('Открываем модальное окно...');
-    document.getElementById('create-chat-modal').style.display = 'flex';
-}
-
-function closeModal() {
-    document.getElementById('create-chat-modal').style.display = 'none';
-    document.getElementById('create-chat-form').reset();
-}
-
-// Защита от XSS
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Закрытие по клику вне окна
-document.getElementById('create-chat-modal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeModal();
+        alert('Не удалось подключиться к серверу');
     }
 });
 </script>

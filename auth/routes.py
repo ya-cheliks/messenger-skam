@@ -1,9 +1,12 @@
+import requests
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from auth import auth  # абсолютный импорт
+from auth import auth
 from data import db_session
 from data.model_user import User
-from data.model_chat import Chat
+
+# Адрес API
+API_URL = 'http://127.0.0.1:5000'
 
 
 @auth.route('/register', methods=['GET', 'POST'])
@@ -24,21 +27,26 @@ def register():
             flash('Пароли не совпадают!', 'error')
             return redirect(url_for('auth.register'))
 
-        session = db_session.create_session()
-        user = session.query(User).filter_by(username=username).first()
+        # --- ИЗМЕНЕНИЕ: Регистрация через API ---
+        try:
+            # Отправляем данные на API, он сам создаст пользователя и захеширует пароль
+            response = requests.post(f'{API_URL}/api/users', json={
+                'username': username,
+                'password': password
+            })
 
-        if user:
-            flash('Такой пользователь уже есть!', 'error')
-            return redirect(url_for('auth.register'))
+            if response.status_code in [200, 201]:
+                flash('Регистрация прошла успешно! Теперь войдите.', 'success')
+                return redirect(url_for('auth.login'))
+            else:
+                # Если API вернул ошибку (например, пользователь уже есть)
+                flash('Ошибка регистрации (возможно, пользователь уже существует)', 'error')
 
-        user = User(username=username)
-        user.set_password(password)
-        session.add(user)
-        session.commit()
+        except requests.exceptions.ConnectionError:
+            flash('Не удалось подключиться к API', 'error')
 
-
-        flash('Регистрация прошла успешно! Теперь войдите.', 'success')
-        return redirect(url_for('auth.login'))
+        # Если что-то пошло не так, остаемся на странице регистрации
+        return redirect(url_for('auth.register'))
 
     return render_template('auth/register.html')
 
@@ -53,6 +61,9 @@ def login():
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
 
+        # --- ПРИМЕЧАНИЕ: Логин оставлен через БД ---
+        # API не имеет метода для проверки пароля (нужен токен),
+        # поэтому пока оставляем проверку через прямую сессию.
         session = db_session.create_session()
         user = session.query(User).filter_by(username=username).first()
 

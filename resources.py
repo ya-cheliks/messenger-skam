@@ -6,6 +6,7 @@ from data.model_user import User
 from data.model_chat import Chat
 from data.model_message import Message
 from api import user_parser, chat_parser, message_parser
+import base64
 
 
 class UserResource(Resource):
@@ -108,18 +109,42 @@ class MessageResource(Resource):
     def get(self, chat_id):
         self.abort_if_chat_not_found(chat_id)
         session = db_session.create_session()
-        chat = session.query(Message).filter_by(chat_id=chat_id).limit(100).all()
-        return jsonify({'messages': [mes.to_dict(only=('content', 'timestamp')) for mes in chat]})
+        messages = session.query(Message).filter_by(chat_id=chat_id).limit(100).all()
+
+        result = []
+        for msg in messages:
+            sender = session.get(User, msg.sender_id)
+
+            #  Конвертируем бинарное фото из БД в base64 для фронтенда
+            picture_uri = None
+            if msg.picture:
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode()}"
+
+            result.append({
+                'id': msg.id,
+                'content': msg.content,
+                'timestamp': msg.timestamp,
+                'sender_id': msg.sender_id,
+                'sender_name': sender.username if sender else 'Unknown',
+                'picture': picture_uri
+            })
+        return jsonify({'messages': result})
 
     def post(self, chat_id):
         self.abort_if_chat_not_found(chat_id)
         args = message_parser.parse_args()
         session = db_session.create_session()
+        picture_bytes = None
+        if args.get('picture'):
+            pic_str = args['picture']
+            if pic_str.startswith('data:'):
+                pic_str = pic_str.split(',', 1)[1]
+            picture_bytes = base64.b64decode(pic_str)
         message = Message(
             content=args['content'],
             chat_id=chat_id,
             sender_id=args['sender_id'],
-            picture=args['picture'],
+            picture=picture_bytes,
             coordinates=args['coordinates']
         )
         session.add(message)

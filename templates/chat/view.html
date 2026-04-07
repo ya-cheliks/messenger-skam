@@ -6,19 +6,29 @@
 <div class="container" style="max-width: 900px; padding: 20px;">
     <div class="chat-view">
         <div class="chat-header">
-            <a href="{{ url_for('chat.index') }}" class="btn-back">←</a>
+            <button class="btn-back" onclick="window.location.href='{{ url_for('chat.index') }}'">←</button>
             <h2 id="chat-title">{{ chat_name }}</h2>
             <span class="users-count">Чат</span>
         </div>
 
+        <!-- Область сообщений -->
         <div class="messages-container" id="messages">
             <div class="loading">Загрузка сообщений...</div>
         </div>
 
+        <!-- Форма отправки -->
         <form class="message-form" id="message-form">
+            <input type="file" id="file-input" accept="image/*" style="display: none;">
+            <button type="button" class="btn-attach" onclick="document.getElementById('file-input').click()" title="Прикрепить фото">📎</button>
             <input type="text" id="message-input" placeholder="Написать сообщение..." required autocomplete="off">
             <button type="submit" class="btn-send">➤</button>
         </form>
+
+        <!-- Превью фото -->
+        <div id="file-preview" style="display: none; padding: 10px; background: #1a1a1a; border-top: 1px solid #444;">
+            <img id="preview-image" src="" style="max-height: 100px; border-radius: 5px;">
+            <button type="button" onclick="removeFile()" style="margin-left: 10px; background: #ff033e; border: none; color: #000; padding: 5px 10px; border-radius: 5px; cursor: pointer;">✕ Удалить</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -26,91 +36,145 @@
 {% block scripts %}
 <script>
 const chatId = {{ chat_id }};
+const currentUserId = {{ current_user.id }};
 const messagesDiv = document.getElementById('messages');
 const messageForm = document.getElementById('message-form');
 const messageInput = document.getElementById('message-input');
+const fileInput = document.getElementById('file-input');
+const filePreview = document.getElementById('file-preview');
+const previewImage = document.getElementById('preview-image');
 
-// Загрузка сообщений
+let selectedFile = null;
+let lastMessageId = 0;
+let isFirstLoad = true;
+
+async function getUserName(userId) {
+    try {
+        const response = await fetch(`/chat/api/user/${userId}`);
+        const data = await response.json();
+        return data.user?.username || 'Unknown';
+    } catch {
+        return 'Unknown';
+    }
+}
+
 async function loadMessages() {
     try {
         const response = await fetch(`/chat/api/messages/${chatId}`);
         const data = await response.json();
 
-        messagesDiv.innerHTML = '';
+        if (!data.messages) return;
+        if (isFirstLoad) {
+            messagesDiv.innerHTML = '';
+            if (data.messages.length === 0) {
+                messagesDiv.innerHTML = '<div class="empty-msg">Нет сообщений. Будьте первым!</div>';
+                return;
+            }
 
-        if (data.messages && data.messages.length > 0) {
             data.messages.forEach(msg => {
-                const msgDiv = document.createElement('div');
-                msgDiv.className = 'message other';
-
-                let time = '';
-                if (msg.timestamp) {
-                    time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                }
-
-                msgDiv.innerHTML = `
-                    <div class="message-content">${msg.content}</div>
-                    <div class="message-meta">
-                        <span class="message-time">${time}</span>
-                    </div>
-                `;
-                messagesDiv.appendChild(msgDiv);
+                appendMessage(msg);
+                lastMessageId = msg.id; // Запоминаем ID последнего
             });
+            isFirstLoad = false;
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        } else {
-            messagesDiv.innerHTML = '<div class="empty-msg">Нет сообщений. Будьте первым!</div>';
+            return;
         }
+
+        let hasNewMessages = false;
+
+        data.messages.forEach(msg => {
+            if (msg.id > lastMessageId) {
+                appendMessage(msg);
+                lastMessageId = msg.id; // Обновляем память
+                hasNewMessages = true;
+            }
+        });
+
+        if (hasNewMessages) {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        messagesDiv.innerHTML = '<div class="error">Ошибка загрузки сообщений</div>';
     }
 }
 
-// Отправка сообщения
-messageForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+function appendMessage(msg) {
+    const emptyMsg = document.querySelector('.empty-msg');
+    if (emptyMsg) emptyMsg.remove();
 
-    const content = messageInput.value.trim();
-    if (!content) return;
+    const msgDiv = document.createElement('div');
+    const isMine = msg.sender_id === currentUserId;
 
-    const btn = messageForm.querySelector('.btn-send');
-    btn.disabled = true;
-    btn.style.opacity = '0.5';
+    // Классы для CSS (mine - справа, other - слева)
+    msgDiv.className = isMine ? 'message mine' : 'message other';
 
-    try {
-        const response = await fetch('/chat/api/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                content: content
-            })
-        });
+    let time = '';
+    if (msg.timestamp) {
+        time = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+    }
 
-        if (response.ok) {
-            messageInput.value = '';
-            await loadMessages();
-        } else {
-            const errorData = await response.json();
-            alert('Ошибка: ' + (errorData.error || 'Неизвестная ошибка'));
-        }
-    } catch (error) {
-        console.error('Ошибка отправки:', error);
-        alert('Не удалось отправить сообщение');
-    } finally {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        messageInput.focus();
+    const header = !isMine ? `<div class="message-header"><span class="message-sender">${msg.sender_name}</span></div>` : '';
+    const img = msg.picture ? `<img src="${msg.picture}" class="message-photo" onclick="window.open(this.src)">` : '';
+
+    msgDiv.innerHTML = `
+        ${header}
+        <div class="message-content">${msg.content}</div>
+        ${img}
+        <div class="message-meta">
+            <span class="message-time">${time}</span>
+        </div>
+    `;
+    messagesDiv.appendChild(msgDiv);
+}
+
+// Обработка выбора файла
+fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file?.type.startsWith('image/')) {
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = ev => { previewImage.src = ev.target.result; filePreview.style.display = 'block'; };
+        reader.readAsDataURL(file);
     }
 });
 
-// Инициализация
+function removeFile() {
+    selectedFile = null; fileInput.value = ''; filePreview.style.display = 'none';
+}
+
+// Отправка сообщения
+messageForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const content = messageInput.value.trim();
+    if (!content && !selectedFile) return;
+
+    const btn = messageForm.querySelector('.btn-send');
+    btn.disabled = true;
+
+    try {
+        let payload = { chat_id: chatId, content: content || '[Фото]' };
+        if (selectedFile) {
+            const reader = new FileReader();
+            payload.picture = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(selectedFile); });
+        }
+
+        const res = await fetch('/chat/api/messages', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            messageInput.value = '';
+            removeFile();
+            loadMessages(); // Сразу обновляем после отправки
+        }
+        else alert('Ошибка отправки');
+    } catch { alert('Не удалось подключиться'); }
+    finally { btn.disabled = false; }
+});
+
 loadMessages();
-setInterval(loadMessages, 3000);
+setInterval(loadMessages, 5000); // Обновление раз в 5 секунд (экономит ресурсы)
 </script>
 {% endblock %}

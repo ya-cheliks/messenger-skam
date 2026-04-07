@@ -9,7 +9,6 @@ API_URL = 'http://127.0.0.1:5000'
 @chat.route('/')
 @login_required
 def index():
-    """Страница со списком чатов (данные берём через API)"""
     try:
         response = requests.get(f'{API_URL}/api/users/{current_user.id}')
         if response.status_code == 200:
@@ -26,7 +25,6 @@ def index():
 @chat.route('/<int:chat_id>')
 @login_required
 def view(chat_id):
-    """Страница просмотра чата (проверка доступа через API)"""
     try:
         response = requests.get(f'{API_URL}/api/users/{current_user.id}')
         if response.status_code != 200:
@@ -58,7 +56,6 @@ def view(chat_id):
 @chat.route('/api/messages/<int:chat_id>', methods=['GET'])
 @login_required
 def get_messages(chat_id):
-    """Промежуточный эндпоинт для получения сообщений через API"""
     try:
         response = requests.get(f'{API_URL}/api/chats/messages/{chat_id}')
         if response.status_code == 200:
@@ -71,22 +68,21 @@ def get_messages(chat_id):
 @chat.route('/api/messages', methods=['POST'])
 @login_required
 def send_message():
-    """Промежуточный эндпоинт для отправки сообщений через API"""
     data = request.get_json()
-    # ✅ ИСПРАВЛЕНО: добавлено "data:" в конце условия
     if not data or 'chat_id' not in data or 'content' not in data:
         return jsonify({'error': 'Некорректные данные'}), 400
 
     chat_id = data['chat_id']
-    content = data['content'].strip()
-    if not content:
-        return jsonify({'error': 'Пустое сообщение'}), 400
+    content = data.get('content', '').strip()
+    picture = data.get('picture')
 
     try:
         payload = {
             'content': content,
             'chat_id': chat_id,
-            'sender_id': current_user.id
+            'sender_id': current_user.id,
+            'picture': picture,
+            'coordinates': None
         }
         response = requests.post(f'{API_URL}/api/chats/messages/{chat_id}', json=payload)
 
@@ -95,3 +91,33 @@ def send_message():
         return jsonify({'error': 'Ошибка API'}), 500
     except Exception as e:
         return jsonify({'error': f'Ошибка: {str(e)}'}), 500
+
+
+# @chat.route('/api/avatar/<int:user_id>', methods=['GET'])
+# @login_required
+# def get_avatar(user_id):
+#     """Получение аватара пользователя"""
+#     try:
+#         response = requests.get(f'{API_URL}/api/users/{user_id}')
+#         if response.status_code == 200:
+#             data = response.json()
+#             avatar = data.get('user', {}).get('avatar')
+#             if avatar and not avatar.startswith('data:'):
+#                 return jsonify({'avatar': f'data:image/png;base64,{avatar}'}), 200
+#             return jsonify({'avatar': avatar}), 200
+#         return jsonify({'avatar': None}), 200
+#     except Exception:
+#         return jsonify({'avatar': None}), 200
+
+
+@chat.route('/api/user/<int:user_id>', methods=['GET'])
+@login_required
+def get_user_info(user_id):
+    """Получение информации о пользователе"""
+    try:
+        response = requests.get(f'{API_URL}/api/users/{user_id}')
+        if response.status_code == 200:
+            return jsonify(response.json()), 200
+        return jsonify({'user': None}), 200
+    except Exception:
+        return jsonify({'user': None}), 200

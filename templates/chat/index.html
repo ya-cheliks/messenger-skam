@@ -3,18 +3,19 @@
 {% block title %}Мои чаты{% endblock %}
 
 {% block content %}
-<div class="chats-container">
-    <div class="chats-header">
-        <h2>Ваши чаты</h2>
-        <button onclick="document.getElementById('create-modal').style.display='flex'"
-                class="btn btn-primary" style="width: auto; padding: 12px 25px;">
-            + Новый чат
-        </button>
-    </div>
+<div class="container">
+    <div class="chats-container">
+        <div class="chats-header">
+            <h2>Ваши чаты</h2>
+            <button onclick="document.getElementById('create-modal').style.display='flex'"
+                    class="btn btn-primary" style="width: auto; padding: 12px 25px;">
+                + Новый чат
+            </button>
+        </div>
 
-    <div class="chats-list" id="chats-list">
-        {% if chats %}
-            {% for chat in chats %}
+        <div class="chats-list" id="chats-list">
+            {% if chats %}
+                {% for chat in chats %}
                 <a href="{{ url_for('chat.view', chat_id=chat.id) }}" class="chat-item">
                     <div class="chat-info">
                         <h4>{{ chat.name }}</h4>
@@ -24,10 +25,11 @@
                     </div>
                     <div class="chat-arrow">→</div>
                 </a>
-            {% endfor %}
-        {% else %}
-            <div class="empty">У вас пока нет чатов</div>
-        {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="empty">У вас пока нет чатов</div>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -40,19 +42,16 @@
                 <label>Название чата:</label>
                 <input type="text" id="chat-name" placeholder="Например: Общие новости" required>
             </div>
-
             <div class="form-group">
                 <label>Участники (ID через пробел):</label>
                 <textarea id="chat-users" rows="3" required
                           style="width: 100%; padding: 10px; border-radius: 5px; background: #000; color: #fff; border: 2px solid #444;">{{ current_user.id }}</textarea>
                 <small style="color: #888;">💡 Ваш ID: {{ current_user.id }}</small>
             </div>
-
             <div class="form-group checkbox">
                 <input type="checkbox" id="chat-private" value="true">
                 <label for="chat-private">Приватный чат</label>
             </div>
-
             <div class="modal-buttons">
                 <button type="button" onclick="document.getElementById('create-modal').style.display='none'"
                         class="btn btn-secondary">Отмена</button>
@@ -67,30 +66,20 @@
 <script>
 document.getElementById('create-chat-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-
     const formData = {
         name: document.getElementById('chat-name').value,
         users_id: document.getElementById('chat-users').value,
         is_private: document.getElementById('chat-private').checked
     };
-
     try {
         const response = await fetch('/api/chats', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(formData)
         });
-
-        if (response.ok) {
-            location.reload();
-        } else {
-            alert('Ошибка при создании чата');
-        }
-    } catch (error) {
-        alert('Не удалось подключиться к серверу');
-    }
+        if (response.ok) location.reload();
+        else alert('Ошибка при создании чата');
+    } catch { alert('Не удалось подключиться к серверу'); }
 });
 </script>
 {% endblock %}

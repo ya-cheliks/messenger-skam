@@ -9,11 +9,80 @@
 <body>
     <div class="container">
         <header>
-            <h1>Messenger SKAM</h1>
-            {% if current_user.is_authenticated %}
-                <p>Привет, {{ current_user.username }}! <a href="{{ url_for('auth.logout') }}">Выйти</a></p>
-            {% endif %}
-        </header>
+    <h1>MESSENGER SKAM</h1>
+    {% if current_user.is_authenticated %}
+    <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-top: 15px;">
+        <!-- Аватар с кнопкой загрузки -->
+        <div style="position: relative; display: inline-block;">
+            <img id="header-avatar"
+                 src="{{ url_for('static', filename='default-avatar.png') }}"
+                 alt="Avatar"
+                 style="width: 60px; height: 60px; border-radius: 50%; border: 3px solid #ff033e; object-fit: cover; cursor: pointer;"
+                 onclick="document.getElementById('avatar-upload').click()">
+            <div style="position: absolute; bottom: 0; right: 0; background: #ff033e; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer;" title="Изменить аватар" onclick="document.getElementById('avatar-upload').click()">✎</div>
+        </div>
+        <!-- Скрытый input для загрузки -->
+        <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+
+        <div style="text-align: left;">
+            <p style="margin: 0;">Привет, <strong>{{ current_user.username }}</strong>!</p>
+            <a href="{{ url_for('auth.logout') }}" style="color: #ff033e; font-size: 0.9em;">Выйти</a>
+        </div>
+    </div>
+    {% endif %}
+</header>
+
+<!-- Скрипт загрузки аватара -->
+{% if current_user.is_authenticated %}
+<script>
+// Загрузка аватара при инициализации
+async function loadUserAvatar() {
+    try {
+        const response = await fetch('/chat/api/avatar');
+        const data = await response.json();
+        if (data.avatar) {
+            document.getElementById('header-avatar').src = data.avatar;
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки аватара:', error);
+    }
+}
+
+// Загрузка нового аватара
+document.getElementById('avatar-upload')?.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(event) {
+        const base64 = event.target.result;
+
+        try {
+            const response = await fetch('/chat/api/avatar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({avatar: base64})
+            });
+
+            if (response.ok) {
+                document.getElementById('header-avatar').src = base64;
+                // Обновляем аватары в чатах, если они открыты
+                if (typeof loadMessages === 'function') loadMessages();
+            } else {
+                const err = await response.json();
+                alert('Ошибка: ' + (err.error || 'Не удалось загрузить аватар'));
+            }
+        } catch (error) {
+            alert('Не удалось подключиться к серверу');
+        }
+    };
+    reader.readAsDataURL(file);
+});
+
+// Запускаем загрузку
+document.addEventListener('DOMContentLoaded', loadUserAvatar);
+</script>
+{% endif %}
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

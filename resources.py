@@ -15,6 +15,14 @@ class UserResource(Resource):
         session = db_session.create_session()
         user = session.get(User, user_id)
 
+        avatar_uri = None
+        if user.avatar:
+            try:
+                avatar_b64 = base64.b64encode(user.avatar).decode('utf-8')
+                avatar_uri = f'image/png;base64,{avatar_b64}'
+            except:
+                avatar_uri = None
+
         # Получаем ВСЕ чаты, где есть этот пользователь
         all_chats = session.query(Chat).all()
         user_chats = []
@@ -29,7 +37,11 @@ class UserResource(Resource):
                     user_chats.append(chat)
 
         return jsonify({
-            'user': user.to_dict(only=('id', 'username', 'avatar')),
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'avatar': avatar_uri
+            },
             'chats': [chat.to_dict(only=('id', 'name', 'is_private')) for chat in user_chats]
         })
 
@@ -47,6 +59,35 @@ class UserResource(Resource):
             'username': user.username,
             'status': 'registered'
         })
+
+    def patch(self, user_id):
+        """ ОБНОВЛЕНИЕ пользователя (включая аватар)"""
+        self.abort_if_user_not_found(user_id)
+        session = db_session.create_session()
+        user = session.get(User, user_id)
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Нет данных'}), 400
+
+        # Обработка аватара (аналогично фото в сообщениях)
+        if 'avatar' in data and data['avatar']:
+            try:
+                avatar_data = data['avatar']
+                # Убираем префикс data:image/png;base64, если есть
+                if avatar_data.startswith('data:'):
+                    avatar_data = avatar_data.split(',', 1)[1]
+                # Декодируем base64 → bytes для хранения в БД
+                user.avatar = base64.b64decode(avatar_data)
+            except Exception as e:
+                return jsonify({'error': f'Ошибка обработки аватара: {str(e)}'}), 400
+
+        # Можно добавить обновление других полей при необходимости
+        if 'username' in data:
+            user.username = data['username']
+
+        session.commit()
+        return jsonify({'status': 'updated', 'user_id': user_id}), 200
 
     def delete(self, user_id):
         self.abort_if_user_not_found(user_id)

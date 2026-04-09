@@ -1,4 +1,5 @@
 import requests
+import base64
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from chat import chat
@@ -11,14 +12,9 @@ API_URL = 'http://127.0.0.1:5000'
 def index():
     try:
         response = requests.get(f'{API_URL}/api/users/{current_user.id}')
-        if response.status_code == 200:
-            data = response.json()
-            chats = data.get('chats', [])
-        else:
-            chats = []
+        chats = response.json().get('chats', []) if response.status_code == 200 else []
     except Exception:
         chats = []
-
     return render_template('chat/index.html', chats=chats)
 
 
@@ -31,15 +27,7 @@ def view(chat_id):
             flash('Ошибка загрузки данных', 'error')
             return redirect(url_for('chat.index'))
 
-        user_data = response.json()
-        chats_list = user_data.get('chats', [])
-
-        target_chat = None
-        for c in chats_list:
-            if c.get('id') == chat_id:
-                target_chat = c
-                break
-
+        target_chat = next((c for c in response.json().get('chats', []) if c.get('id') == chat_id), None)
         if not target_chat:
             flash('Чат не найден или нет доступа', 'error')
             return redirect(url_for('chat.index'))
@@ -47,7 +35,6 @@ def view(chat_id):
         return render_template('chat/view.html',
                                chat_id=chat_id,
                                chat_name=target_chat.get('name', 'Чат'))
-
     except Exception as e:
         flash(f'Ошибка: {str(e)}', 'error')
         return redirect(url_for('chat.index'))
@@ -93,31 +80,59 @@ def send_message():
         return jsonify({'error': f'Ошибка: {str(e)}'}), 500
 
 
-# @chat.route('/api/avatar/<int:user_id>', methods=['GET'])
-# @login_required
-# def get_avatar(user_id):
-#     """Получение аватара пользователя"""
-#     try:
-#         response = requests.get(f'{API_URL}/api/users/{user_id}')
-#         if response.status_code == 200:
-#             data = response.json()
-#             avatar = data.get('user', {}).get('avatar')
-#             if avatar and not avatar.startswith('data:'):
-#                 return jsonify({'avatar': f'data:image/png;base64,{avatar}'}), 200
-#             return jsonify({'avatar': avatar}), 200
-#         return jsonify({'avatar': None}), 200
-#     except Exception:
-#         return jsonify({'avatar': None}), 200
+# ✅ НОВЫЕ МАРШРУТЫ ДЛЯ АВАТАРОК
+@chat.route('/api/avatar', methods=['GET'])
+@login_required
+def get_my_avatar():
+    """Получить аватар текущего пользователя через API"""
+    try:
+        response = requests.get(f'{API_URL}/api/users/{current_user.id}')
+        if response.status_code == 200:
+            data = response.json()
+            avatar = data.get('user', {}).get('avatar')
+            return jsonify({'avatar': avatar}), 200
+        return jsonify({'avatar': None}), 200
+    except Exception:
+        return jsonify({'avatar': None}), 200
+
+
+@chat.route('/api/avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    """Загрузить аватар текущего пользователя через API (PATCH к UserResource)"""
+    try:
+        data = request.get_json()
+        if not data or 'avatar' not in data:
+            return jsonify({'error': 'Нет данных аватара'}), 400
+
+        # Отправляем PATCH запрос к /api/users/{id}
+        response = requests.patch(
+            f'{API_URL}/api/users/{current_user.id}',
+            json={'avatar': data['avatar']}
+        )
+
+        if response.status_code in [200, 201]:
+            return jsonify({'status': 'uploaded', 'data': response.json()}), 200
+        return jsonify({'error': 'Ошибка загрузки'}), 500
+    except Exception as e:
+        return jsonify({'error': f'Ошибка: {str(e)}'}), 500
 
 
 @chat.route('/api/user/<int:user_id>', methods=['GET'])
 @login_required
 def get_user_info(user_id):
-    """Получение информации о пользователе"""
+    """Получить информацию о пользователе (для отображения в чате)"""
     try:
         response = requests.get(f'{API_URL}/api/users/{user_id}')
         if response.status_code == 200:
-            return jsonify(response.json()), 200
+            data = response.json()
+            return jsonify({
+                'user': {
+                    'id': data['user']['id'],
+                    'username': data['user']['username'],
+                    'avatar': data['user']['avatar']
+                }
+            }), 200
         return jsonify({'user': None}), 200
     except Exception:
         return jsonify({'user': None}), 200

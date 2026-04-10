@@ -5,7 +5,6 @@ from auth import auth
 from data import db_session
 from data.model_user import User
 
-# Адрес API
 API_URL = 'http://127.0.0.1:5000'
 
 
@@ -27,9 +26,8 @@ def register():
             flash('Пароли не совпадают!', 'error')
             return redirect(url_for('auth.register'))
 
-        # --- ИЗМЕНЕНИЕ: Регистрация через API ---
+        # --- Регистрация через API ---
         try:
-            # Отправляем данные на API, он сам создаст пользователя и захеширует пароль
             response = requests.post(f'{API_URL}/api/users', json={
                 'username': username,
                 'password': password
@@ -39,13 +37,11 @@ def register():
                 flash('Регистрация прошла успешно! Теперь войдите.', 'success')
                 return redirect(url_for('auth.login'))
             else:
-                # Если API вернул ошибку (например, пользователь уже есть)
                 flash('Ошибка регистрации (возможно, пользователь уже существует)', 'error')
 
         except requests.exceptions.ConnectionError:
             flash('Не удалось подключиться к API', 'error')
 
-        # Если что-то пошло не так, остаемся на странице регистрации
         return redirect(url_for('auth.register'))
 
     return render_template('auth/register.html')
@@ -61,9 +57,6 @@ def login():
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
 
-        # --- ПРИМЕЧАНИЕ: Логин оставлен через БД ---
-        # API не имеет метода для проверки пароля (нужен токен),
-        # поэтому пока оставляем проверку через прямую сессию.
         session = db_session.create_session()
         user = session.query(User).filter_by(username=username).first()
 

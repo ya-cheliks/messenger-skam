@@ -1,7 +1,5 @@
 {% extends "base.html" %}
-
 {% block title %}{{ chat_name or 'Чат' }}{% endblock %}
-
 {% block content %}
 <div class="container" style="max-width: 900px; padding: 20px;">
     <div class="chat-view">
@@ -10,18 +8,15 @@
             <h2 id="chat-title">{{ chat_name }}</h2>
             <span class="users-count">Чат</span>
         </div>
-
         <div class="messages-container" id="messages">
             <div class="loading">Загрузка сообщений...</div>
         </div>
-
         <form class="message-form" id="message-form">
             <input type="file" id="file-input" accept="image/*" style="display: none;">
             <button type="button" class="btn-attach" onclick="document.getElementById('file-input').click()" title="Прикрепить фото">📎</button>
             <input type="text" id="message-input" placeholder="Написать сообщение..." required autocomplete="off">
             <button type="submit" class="btn-send">➤</button>
         </form>
-
         <div id="file-preview" style="display: none; padding: 10px; background: #1a1a1a; border-top: 1px solid #444;">
             <img id="preview-image" src="" style="max-height: 100px; border-radius: 5px;">
             <button type="button" onclick="removeFile()" style="margin-left: 10px; background: #ff033e; border: none; color: #000; padding: 5px 10px; border-radius: 5px; cursor: pointer;">✕</button>
@@ -45,24 +40,36 @@ let selectedFile = null;
 let lastMessageId = 0;
 let isFirstLoad = true;
 
-// Загрузка сообщений с "умной" подгрузкой
+// Отрисовка одного сообщения
+function appendMessage(msg) {
+    const empty = document.querySelector('.empty-msg, .loading, .error');
+    if (empty) empty.remove();
+
+    const div = document.createElement('div');
+    const isMine = msg.sender_id === currentUserId;
+    div.className = `message ${isMine ? 'mine' : 'other'}`;
+
+    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) : '';
+    const header = !isMine ? `<div class="message-header"><span class="message-sender">${msg.sender_name}</span></div>` : '';
+    const img = msg.picture ? `<img src="${msg.picture}" class="message-photo" onclick="window.open(this.src)">` : '';
+
+    div.innerHTML = `${header}<div class="message-content">${msg.content}</div>${img}<div class="message-meta"><span class="message-time">${time}</span></div>`;
+    messagesDiv.appendChild(div);
+}
+
 async function loadMessages() {
     try {
-        const response = await fetch(`/chat/api/messages/${chatId}`);
-        const data = await response.json();
-
+        const res = await fetch(`/chat/api/messages/${chatId}`);
+        const data = await res.json();
         if (!data.messages) return;
 
         if (isFirstLoad) {
             messagesDiv.innerHTML = '';
-            if (data.messages.length === 0) {
+            if (!data.messages.length) {
                 messagesDiv.innerHTML = '<div class="empty-msg">Нет сообщений. Будьте первым!</div>';
                 return;
             }
-            data.messages.forEach(msg => {
-                appendMessage(msg);
-                lastMessageId = msg.id;
-            });
+            data.messages.forEach(msg => { appendMessage(msg); lastMessageId = msg.id; });
             isFirstLoad = false;
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             return;
@@ -70,56 +77,13 @@ async function loadMessages() {
 
         let hasNew = false;
         data.messages.forEach(msg => {
-            if (msg.id > lastMessageId) {
-                appendMessage(msg);
-                lastMessageId = msg.id;
-                hasNew = true;
-            }
+            if (msg.id > lastMessageId) { appendMessage(msg); lastMessageId = msg.id; hasNew = true; }
         });
         if (hasNew) messagesDiv.scrollTop = messagesDiv.scrollHeight;
-
-    } catch (error) {
-        console.error('Ошибка:', error);
-    }
+    } catch (err) { console.error(err); }
 }
 
-// Отрисовка одного сообщения
-function appendMessage(msg) {
-    const empty = document.querySelector('.empty-msg');
-    if (empty) empty.remove();
-
-    const div = document.createElement('div');
-    const isMine = msg.sender_id === currentUserId;
-    div.className = isMine ? 'message mine' : 'message other';
-
-    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) : '';
-
-    // ✅ Аватар и имя для чужих сообщений
-    let header = '';
-    if (!isMine) {
-        const avatar = msg.sender_avatar || (await getUserAvatar(msg.sender_id));
-        const avatarHtml = avatar
-            ? `<img src="${avatar}" class="message-avatar" alt="">`
-            : `<div class="message-avatar placeholder">${(msg.sender_name || '?')[0].toUpperCase()}</div>`;
-        header = `<div class="message-header">${avatarHtml}<span class="message-sender">${msg.sender_name || 'Unknown'}</span></div>`;
-    }
-
-    const photo = msg.picture ? `<img src="${msg.picture}" class="message-photo" onclick="window.open(this.src)">` : '';
-
-    div.innerHTML = `${header}<div class="message-content">${msg.content}</div>${photo}<div class="message-meta"><span class="message-time">${time}</span></div>`;
-    messagesDiv.appendChild(div);
-}
-
-// Получение аватара пользователя через API
-async function getUserAvatar(userId) {
-    try {
-        const res = await fetch(`/chat/api/user/${userId}`);
-        const data = await res.json();
-        return data.user?.avatar || null;
-    } catch { return null; }
-}
-
-// Выбор файла для отправки
+// Выбор файла
 fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     if (file?.type.startsWith('image/')) {
@@ -130,11 +94,9 @@ fileInput.addEventListener('change', e => {
     }
 });
 
-function removeFile() {
-    selectedFile = null; fileInput.value = ''; filePreview.style.display = 'none';
-}
+function removeFile() { selectedFile = null; fileInput.value = ''; filePreview.style.display = 'none'; }
 
-// Отправка сообщения
+// Отправка
 messageForm.addEventListener('submit', async e => {
     e.preventDefault();
     const content = messageInput.value.trim();
@@ -149,12 +111,10 @@ messageForm.addEventListener('submit', async e => {
             const reader = new FileReader();
             payload.picture = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(selectedFile); });
         }
-
         const res = await fetch('/chat/api/messages', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-
         if (res.ok) { messageInput.value = ''; removeFile(); loadMessages(); }
         else alert('Ошибка отправки');
     } catch { alert('Не удалось подключиться'); }
@@ -163,6 +123,6 @@ messageForm.addEventListener('submit', async e => {
 
 // Запуск
 loadMessages();
-setInterval(loadMessages, 3000);
+setInterval(loadMessages, 5000);
 </script>
 {% endblock %}

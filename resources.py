@@ -1,6 +1,6 @@
 from flask_restful import reqparse, abort, Resource
 from data import db_session
-from flask import jsonify
+from flask import jsonify, request
 from werkzeug.security import generate_password_hash
 from data.model_user import User
 from data.model_chat import Chat
@@ -15,15 +15,6 @@ class UserResource(Resource):
         session = db_session.create_session()
         user = session.get(User, user_id)
 
-        avatar_uri = None
-        if user.avatar:
-            try:
-                avatar_b64 = base64.b64encode(user.avatar).decode('utf-8')
-                avatar_uri = f'image/png;base64,{avatar_b64}'
-            except:
-                avatar_uri = None
-
-        # Получаем ВСЕ чаты, где есть этот пользователь
         all_chats = session.query(Chat).all()
         user_chats = []
 
@@ -35,6 +26,10 @@ class UserResource(Resource):
                     user_chats.append(chat)
                 elif not chat.is_private:
                     user_chats.append(chat)
+
+        avatar_uri = None
+        if user.avatar:
+            avatar_uri = f"data:image/png;base64,{base64.b64encode(user.avatar).decode('utf-8')}"
 
         return jsonify({
             'user': {
@@ -61,33 +56,21 @@ class UserResource(Resource):
         })
 
     def patch(self, user_id):
-        """ ОБНОВЛЕНИЕ пользователя (включая аватар)"""
         self.abort_if_user_not_found(user_id)
-        session = db_session.create_session()
-        user = session.get(User, user_id)
+        args = request.get_json()
 
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'Нет данных'}), 400
+        if 'avatar' in args:
+            avatar_data = args['avatar']
+            if avatar_data.startswith('data:'):
+                avatar_data = avatar_data.split(',', 1)[1]
+            avatar_bytes = base64.b64decode(avatar_data)
 
-        # Обработка аватара (аналогично фото в сообщениях)
-        if 'avatar' in data and data['avatar']:
-            try:
-                avatar_data = data['avatar']
-                # Убираем префикс data:image/png;base64, если есть
-                if avatar_data.startswith('data:'):
-                    avatar_data = avatar_data.split(',', 1)[1]
-                # Декодируем base64 → bytes для хранения в БД
-                user.avatar = base64.b64decode(avatar_data)
-            except Exception as e:
-                return jsonify({'error': f'Ошибка обработки аватара: {str(e)}'}), 400
+            session = db_session.create_session()
+            user = session.get(User, user_id)
+            user.avatar = avatar_bytes
+            session.commit()
 
-        # Можно добавить обновление других полей при необходимости
-        if 'username' in data:
-            user.username = data['username']
-
-        session.commit()
-        return jsonify({'status': 'updated', 'user_id': user_id}), 200
+        return {'status': 'updated', 'user_id': user_id}, 200
 
     def delete(self, user_id):
         self.abort_if_user_not_found(user_id)
@@ -150,13 +133,12 @@ class MessageResource(Resource):
     def get(self, chat_id):
         self.abort_if_chat_not_found(chat_id)
         session = db_session.create_session()
-        messages = session.query(Message).filter_by(chat_id=chat_id).limit(100).all()
+        messages = session.query(Message).filter_by(chat_id=chat_id).order_by(Message.id).limit(100).all()
 
         result = []
         for msg in messages:
             sender = session.get(User, msg.sender_id)
 
-            #  Конвертируем бинарное фото из БД в base64 для фронтенда
             picture_uri = None
             if msg.picture:
                 picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode()}"

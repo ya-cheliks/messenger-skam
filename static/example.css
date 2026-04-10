@@ -628,7 +628,6 @@ footer {
     gap: 10px;
     margin-bottom: 8px;
 }
-
 .message-avatar {
     width: 36px;
     height: 36px;
@@ -636,7 +635,6 @@ footer {
     object-fit: cover;
     border: 2px solid #ff033e;
 }
-
 .message-avatar.placeholder {
     background: #ff033e;
     color: #000;
@@ -647,16 +645,12 @@ footer {
     font-size: 16px;
     border-radius: 50%;
 }
-
 .message-sender {
     color: #ff033e;
     font-weight: 600;
     font-size: 0.95em;
 }
-
-.message.mine .message-sender {
-    color: #000;
-}
+.message.mine .message-sender { color: #000; }
 
 /* ===== ФОТО В СООБЩЕНИЯХ ===== */
 .message-photo {
@@ -668,12 +662,9 @@ footer {
     cursor: pointer;
     transition: transform 0.3s;
 }
+.message-photo:hover { transform: scale(1.02); }
 
-.message-photo:hover {
-    transform: scale(1.02);
-}
-
-/* ===== СКРЕПКА ===== */
+/* ===== КНОПКА-СКРЕПКА ===== */
 .btn-attach {
     width: 50px;
     height: 50px;
@@ -688,21 +679,4 @@ footer {
     align-items: center;
     justify-content: center;
 }
-
-.btn-attach:hover {
-    background: #555;
-    transform: rotate(15deg);
-}
-
-.message-form {
-    display: flex;
-    gap: 10px;
-    padding: 20px;
-    background: #000;
-    border-top: 2px solid #444;
-    align-items: center;
-}
-
-.message-form input[type="text"] {
-    flex: 1;
-}
+.btn-attach:hover { background: #555; transform: rotate(15deg); }

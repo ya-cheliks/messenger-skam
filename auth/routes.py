@@ -1,11 +1,12 @@
 import requests
 from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from auth import auth
+from . import auth
 from data import db_session
 from data.model_user import User
+import os
 
-API_URL = 'http://127.0.0.1:5000'
+API_URL = os.getenv('API_URL', 'http://127.0.0.1:5000')
 
 
 @auth.route('/register', methods=['GET', 'POST'])
@@ -44,7 +45,7 @@ def register():
 
         return redirect(url_for('auth.register'))
 
-    return render_template('auth/register.html')
+    return render_template('register.html')
 
 
 @auth.route('/login', methods=['GET', 'POST'])

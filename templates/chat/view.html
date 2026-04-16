@@ -109,7 +109,9 @@ messageForm.addEventListener('submit', async e => {
         let payload = { chat_id: chatId, content: content || '[Фото]' };
         if (selectedFile) {
             const reader = new FileReader();
-            payload.picture = await new Promise(res => { reader.onload = () => res(reader.result); reader.readAsDataURL(selectedFile); });
+            payload.picture = await new Promise(res =>
+             { reader.onload = () => res(reader.result);
+              reader.readAsDataURL(selectedFile); });
         }
         const res = await fetch('/chat/api/messages', {
             method: 'POST', headers: {'Content-Type': 'application/json'},

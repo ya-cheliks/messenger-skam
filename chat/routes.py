@@ -1,9 +1,10 @@
 import requests
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from chat import chat
+from . import chat
+import os
 
-API_URL = 'http://127.0.0.1:5000'
+API_URL = os.getenv('API_URL', 'http://127.0.0.1:5000')
 
 
 @chat.route('/')
@@ -49,7 +50,7 @@ def get_messages(chat_id):
         return jsonify({'messages': []}), 200
 
 
-@chat.route('/api/messages', methods=['POST'])
+@chat.route('/api/messages/<int:chat_id>', methods=['POST'])
 @login_required
 def send_message():
     data = request.get_json()

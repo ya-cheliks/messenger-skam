@@ -7,6 +7,7 @@ from data.model_chat import Chat
 from data.model_message import Message
 from api import user_parser, chat_parser, message_parser
 import base64
+from api_maps import get_map_data_uri
 
 
 class UserResource(Resource):
@@ -140,8 +141,13 @@ class MessageResource(Resource):
             sender = session.get(User, msg.sender_id)
 
             picture_uri = None
-            if msg.picture:
-                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode()}"
+
+            # picture_uri = get_map_data_uri('Москва')
+            if msg.coordinates:
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.coordinates).decode('utf-8')}"
+            elif msg.picture:
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode('utf-8')}"
+
 
             result.append({
                 'id': msg.id,
@@ -163,13 +169,32 @@ class MessageResource(Resource):
             if pic_str.startswith('data:'):
                 pic_str = pic_str.split(',', 1)[1]
             picture_bytes = base64.b64decode(pic_str)
+
+        test_mass = args['content']
+        print(test_mass)
+        picture_uri_map = None
+        if test_mass.startswith('=geo'):  # юзер-чит-код по сообщению своей геопозиции
+            # try:
+            # loc = test_mass[4:]
+            # print(get_map_data_uri(loc))
+            # picture_uri_map = get_map_data_uri(loc)
+            # if picture_uri_map.startswith('data:'):
+            #     picture_uri_map = picture_uri_map.split(',', 1)[1]
+            # except Exception:
+            #     picture_uri_map = None
+            picture_uri_map = args['picture']
+            if picture_uri_map.startswith('data:'):
+                picture_uri_map = picture_uri_map.split(',', 1)[1]
+            picture_uri_map = base64.b64decode(picture_uri_map)
         message = Message(
             content=args['content'],
             chat_id=chat_id,
             sender_id=args['sender_id'],
-            picture=picture_bytes,
-            coordinates=args['coordinates']
+            picture=picture_bytes ,
+            coordinates=picture_uri_map if picture_uri_map else None
         )
+        print(picture_uri_map)
+        print(message)
         session.add(message)
         session.commit()
         return jsonify({'message': message.to_dict(only=('content', 'timestamp'))})

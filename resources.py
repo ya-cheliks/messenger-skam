@@ -144,9 +144,9 @@ class MessageResource(Resource):
 
             # picture_uri = get_map_data_uri('Москва')
             if msg.coordinates:
-                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.coordinates).decode('utf-8')}"
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.coordinates).decode()}"
             elif msg.picture:
-                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode('utf-8')}"
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode()}"
 
 
             result.append({
@@ -166,8 +166,10 @@ class MessageResource(Resource):
         picture_bytes = None
         if args.get('picture'):
             pic_str = args['picture']
+            print(pic_str[:100])
             if pic_str.startswith('data:'):
                 pic_str = pic_str.split(',', 1)[1]
+            print(pic_str[:100])
             picture_bytes = base64.b64decode(pic_str)
 
         test_mass = args['content']
@@ -175,17 +177,19 @@ class MessageResource(Resource):
         picture_uri_map = None
         if test_mass.startswith('=geo'):  # юзер-чит-код по сообщению своей геопозиции
             # try:
-            # loc = test_mass[4:]
-            # print(get_map_data_uri(loc))
-            # picture_uri_map = get_map_data_uri(loc)
+            loc = test_mass[4:]
+            picture_uri_map = get_map_data_uri(loc)
+            print(picture_uri_map[:100])
             # if picture_uri_map.startswith('data:'):
             #     picture_uri_map = picture_uri_map.split(',', 1)[1]
             # except Exception:
             #     picture_uri_map = None
-            picture_uri_map = args['picture']
-            if picture_uri_map.startswith('data:'):
+            '''if picture_uri_map.startswith('data:'):
                 picture_uri_map = picture_uri_map.split(',', 1)[1]
-            picture_uri_map = base64.b64decode(picture_uri_map)
+                print(picture_uri_map[:100])'''
+            # picture_uri_map = base64.b64decode(picture_uri_map)
+            # print(picture_uri_map[:100])
+
         message = Message(
             content=args['content'],
             chat_id=chat_id,

@@ -7,7 +7,10 @@ from data.model_chat import Chat
 from data.model_message import Message
 from api import user_parser, chat_parser, message_parser
 import base64
-from api_maps import get_map_data_uri
+from api_maps import get_map_data_uri, ll
+from api_youtude import youtube_https, channel_by_name
+
+chit_cod = ['=geo', '=video', '=channel']   # чит коды для работы с мессенджером
 
 
 class UserResource(Resource):
@@ -144,9 +147,9 @@ class MessageResource(Resource):
 
             # picture_uri = get_map_data_uri('Москва')
             if msg.coordinates:
-                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.coordinates).decode('utf-8')}"
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(get_map_data_uri(msg.coordinates)).decode()}"
             elif msg.picture:
-                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode('utf-8')}"
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode()}"
 
 
             result.append({
@@ -166,35 +169,34 @@ class MessageResource(Resource):
         picture_bytes = None
         if args.get('picture'):
             pic_str = args['picture']
+            print(pic_str[:100])
             if pic_str.startswith('data:'):
                 pic_str = pic_str.split(',', 1)[1]
+            print(pic_str[:100])
             picture_bytes = base64.b64decode(pic_str)
 
         test_mass = args['content']
         print(test_mass)
-        picture_uri_map = None
-        if test_mass.startswith('=geo'):  # юзер-чит-код по сообщению своей геопозиции
-            # try:
-            # loc = test_mass[4:]
-            # print(get_map_data_uri(loc))
-            # picture_uri_map = get_map_data_uri(loc)
-            # if picture_uri_map.startswith('data:'):
-            #     picture_uri_map = picture_uri_map.split(',', 1)[1]
-            # except Exception:
-            #     picture_uri_map = None
-            picture_uri_map = args['picture']
-            if picture_uri_map.startswith('data:'):
-                picture_uri_map = picture_uri_map.split(',', 1)[1]
-            picture_uri_map = base64.b64decode(picture_uri_map)
+        ll_uri_map = None
+        text = None
+        for cod in chit_cod:
+            if test_mass.startswith(cod):
+                if cod == '=geo':   # юзер-чит-код по сообщению своей геопозиции
+                    ll_uri_map = ll(test_mass)
+                elif cod == '=video':
+                    text = youtube_https(test_mass)
+                elif cod == '=channel':
+                    x = channel_by_name(test_mass)
+                    if x:
+                        text = f'{x['title']} - {x['url']}'
+
         message = Message(
-            content=args['content'],
+            content=text if text else args['content'],
             chat_id=chat_id,
             sender_id=args['sender_id'],
             picture=picture_bytes ,
-            coordinates=picture_uri_map if picture_uri_map else None
+            coordinates=ll_uri_map
         )
-        print(picture_uri_map)
-        print(message)
         session.add(message)
         session.commit()
         return jsonify({'message': message.to_dict(only=('content', 'timestamp'))})

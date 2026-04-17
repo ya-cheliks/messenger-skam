@@ -1,17 +1,14 @@
+import base64
+
 import requests
 
 
-def get_map_data_uri(name_geo):
+def get_map_data_uri(ll):
     server_address = 'https://static-maps.yandex.ru/v1?'
     api_key = 'f3a0fe3a-b07e-4840-a1da-06f18b2ddf13'
-    ll_spn = f'll={materic(name_geo)}'
-    # Готовим запрос.
-
-    map_request = f"{server_address}{ll_spn}&apikey={api_key}&spn=0.15,0.15"
+    map_request = f"{server_address}ll={ll}&apikey={api_key}&spn=0.05,0.05&pt={ll}"
     response = requests.get(map_request)
-    map_file = "map.png"
-    with open(map_file, "wb") as file:
-        file.write(response.content)
+    response.raise_for_status()
     return response.content
 
 
@@ -31,9 +28,21 @@ def materic(name):
             # Согласно описанию ответа, он находится по следующему пути:
             toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
             toponym_coodrinates = toponym["Point"]["pos"]
+            print(','.join(toponym_coodrinates.split(" ")))
             return ','.join(toponym_coodrinates.split(" "))
+
+
+def ll(test_mass):
+    try:
+        loc = test_mass[4:]
+        ll_uri_map = materic(loc)
+        print(ll_uri_map[:100])
+    except Exception:
+        ll_uri_map = None
+    finally:
+        return ll_uri_map
 
 
 if __name__ == '__main__':
     name_geo = 'Москва'
-    print(getImage(name_geo).content)
+    print(get_map_data_uri(name_geo))

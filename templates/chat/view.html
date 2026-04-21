@@ -1,130 +1,76 @@
 {% extends "base.html" %}
 {% block title %}{{ chat_name or 'Чат' }}{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width: 900px; padding: 20px;">
-    <div class="chat-view">
-        <div class="chat-header">
-            <button class="btn-back" onclick="window.location.href='{{ url_for('chat.index') }}'">←</button>
-            <h2 id="chat-title">{{ chat_name }}</h2>
-            <span class="users-count">Чат</span>
-        </div>
-        <div class="messages-container" id="messages">
-            <div class="loading">Загрузка сообщений...</div>
-        </div>
-        <form class="message-form" id="message-form">
-            <input type="file" id="file-input" accept="image/*" style="display: none;">
-            <button type="button" class="btn-attach" onclick="document.getElementById('file-input').click()" title="Прикрепить фото">📎</button>
-            <input type="text" id="message-input" placeholder="Написать сообщение..." required autocomplete="off">
-            <button type="submit" class="btn-send">➤</button>
-        </form>
-        <div id="file-preview" style="display: none; padding: 10px; background: #1a1a1a; border-top: 1px solid #444;">
-            <img id="preview-image" src="" style="max-height: 100px; border-radius: 5px;">
-            <button type="button" onclick="removeFile()" style="margin-left: 10px; background: #ff033e; border: none; color: #000; padding: 5px 10px; border-radius: 5px; cursor: pointer;">✕</button>
+<div class="chat-view">
+    <div class="chat-header">
+        <a href="{{ url_for('chat.index') }}" class="btn-back">←</a>
+        <h2 id="chat-title">{{ chat_name }}</h2>
+    </div>
+
+    <div class="messages-container" id="messages">
+        {% if messages %}
+            {% for msg in messages %}
+                <div class="message {{ 'mine' if msg.is_mine else 'other' }}">
+                    <div class="message-header">
+                        {% if not msg.is_mine %}
+                            <span class="message-sender">{{ msg.sender_name }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="message-content">{{ msg.content }}</div>
+
+                    {% if msg.picture %}
+                        <img src="{{ msg.picture }}" alt="Вложение" class="message-photo">
+                    {% endif %}
+
+                    <div class="message-meta">
+                        <span class="message-time">{{ msg.timestamp }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-msg">Сообщений пока нет. Напишите первое!</div>
+        {% endif %}
+    </div>
+
+    <div id="photo-preview" style="display: none; padding: 10px 25px; background: #1a1a1a; border-bottom: 1px solid #333;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <img id="preview-img" src="" style="max-height: 80px; border-radius: 10px; border: 2px solid #ff033e;">
+            <span style="color: #aaa; font-size: 0.9em;">📷 Фото готово к отправке</span>
+            <button type="button" onclick="clearPhoto()" style="background: none; border: none; color: #ff033e; cursor: pointer; font-size: 1.3em; margin-left: auto;">✕</button>
         </div>
     </div>
+
+    <form method="POST" action="{{ url_for('chat.send_message', chat_id=chat_id) }}" class="message-form" enctype="multipart/form-data">
+        <label for="photo-input" class="btn-attach" title="Прикрепить фото">📎</label>
+        <input type="file" id="photo-input" name="photo" accept="image/*" style="display: none;">
+
+        <input type="text" name="content" placeholder="Введите сообщение..." autocomplete="off">
+        <button type="submit" class="btn-send">➤</button>
+    </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const chatId = {{ chat_id }};
-const currentUserId = {{ current_user.id }};
-const messagesDiv = document.getElementById('messages');
-const messageForm = document.getElementById('message-form');
-const messageInput = document.getElementById('message-input');
-const fileInput = document.getElementById('file-input');
-const filePreview = document.getElementById('file-preview');
-const previewImage = document.getElementById('preview-image');
+    const fileInput = document.getElementById('photo-input');
+    const previewArea = document.getElementById('photo-preview');
+    const previewImg = document.getElementById('preview-img');
 
-let selectedFile = null;
-let lastMessageId = 0;
-let isFirstLoad = true;
-
-// Отрисовка одного сообщения
-function appendMessage(msg) {
-    const empty = document.querySelector('.empty-msg, .loading, .error');
-    if (empty) empty.remove();
-
-    const div = document.createElement('div');
-    const isMine = msg.sender_id === currentUserId;
-    div.className = `message ${isMine ? 'mine' : 'other'}`;
-
-    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) : '';
-    const header = !isMine ? `<div class="message-header"><span class="message-sender">${msg.sender_name}</span></div>` : '';
-    const img = msg.picture ? `<img src="${msg.picture}" class="message-photo" onclick="window.open(this.src)">` : '';
-
-    div.innerHTML = `${header}<div class="message-content">${msg.content}</div>${img}<div class="message-meta"><span class="message-time">${time}</span></div>`;
-    messagesDiv.appendChild(div);
-}
-
-async function loadMessages() {
-    try {
-        const res = await fetch(`/chat/api/messages/${chatId}`);
-        const data = await res.json();
-        if (!data.messages) return;
-
-        if (isFirstLoad) {
-            messagesDiv.innerHTML = '';
-            if (!data.messages.length) {
-                messagesDiv.innerHTML = '<div class="empty-msg">Нет сообщений. Будьте первым!</div>';
-                return;
-            }
-            data.messages.forEach(msg => { appendMessage(msg); lastMessageId = msg.id; });
-            isFirstLoad = false;
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            return;
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            previewImg.src = URL.createObjectURL(file);
+            previewArea.style.display = 'block';
+        } else {
+            clearPhoto();
         }
+    });
 
-        let hasNew = false;
-        data.messages.forEach(msg => {
-            if (msg.id > lastMessageId) { appendMessage(msg); lastMessageId = msg.id; hasNew = true; }
-        });
-        if (hasNew) messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    } catch (err) { console.error(err); }
-}
-
-// Выбор файла
-fileInput.addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (file?.type.startsWith('image/')) {
-        selectedFile = file;
-        const reader = new FileReader();
-        reader.onload = ev => { previewImage.src = ev.target.result; filePreview.style.display = 'block'; };
-        reader.readAsDataURL(file);
+    function clearPhoto() {
+        fileInput.value = '';
+        previewArea.style.display = 'none';
+        previewImg.src = '';
     }
-});
-
-function removeFile() { selectedFile = null; fileInput.value = ''; filePreview.style.display = 'none'; }
-
-// Отправка
-messageForm.addEventListener('submit', async e => {
-    e.preventDefault();
-    const content = messageInput.value.trim();
-    if (!content && !selectedFile) return;
-
-    const btn = messageForm.querySelector('.btn-send');
-    btn.disabled = true;
-
-    try {
-        let payload = { chat_id: chatId, content: content || '[Фото]' };
-        if (selectedFile) {
-            const reader = new FileReader();
-            payload.picture = await new Promise(res =>
-             { reader.onload = () => res(reader.result);
-              reader.readAsDataURL(selectedFile); });
-        }
-        const res = await fetch('/chat/api/messages', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        });
-        if (res.ok) { messageInput.value = ''; removeFile(); loadMessages(); }
-        else alert('Ошибка отправки');
-    } catch { alert('Не удалось подключиться'); }
-    finally { btn.disabled = false; }
-});
-
-// Запуск
-loadMessages();
-setInterval(loadMessages, 5000);
 </script>
 {% endblock %}

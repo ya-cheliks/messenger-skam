@@ -169,10 +169,8 @@ class MessageResource(Resource):
         picture_bytes = None
         if args.get('picture'):
             pic_str = args['picture']
-            print(pic_str[:100])
             if pic_str.startswith('data:'):
                 pic_str = pic_str.split(',', 1)[1]
-            print(pic_str[:100])
             picture_bytes = base64.b64decode(pic_str)
 
         test_mass = args['content']

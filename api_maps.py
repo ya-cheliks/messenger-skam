@@ -28,7 +28,6 @@ def materic(name):
             # Согласно описанию ответа, он находится по следующему пути:
             toponym = json_response["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]
             toponym_coodrinates = toponym["Point"]["pos"]
-            print(','.join(toponym_coodrinates.split(" ")))
             return ','.join(toponym_coodrinates.split(" "))
 
 
@@ -45,4 +44,4 @@ def ll(test_mass):
 
 if __name__ == '__main__':
     name_geo = 'Москва'
-    print(get_map_data_uri(name_geo))
+    print(getImage(name_geo).content)

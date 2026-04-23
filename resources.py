@@ -186,7 +186,7 @@ class MessageResource(Resource):
                 elif cod == '=channel':
                     x = channel_by_name(test_mass)
                     if x:
-                        text = f'{x['title']} - {x['url']}'
+                        text = f'{x["title"]} - {x["url"]}'
 
         message = Message(
             content=text if text else args['content'],

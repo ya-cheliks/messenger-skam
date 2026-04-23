@@ -8,4 +8,4 @@ Werkzeug~=3.1.8
 python-dotenv~=1.2.2
 sqlalchemy_serializer
 flask-restful
-requests~=2.33.1
+requests

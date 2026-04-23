@@ -7,6 +7,10 @@ from data.model_chat import Chat
 from data.model_message import Message
 from api import user_parser, chat_parser, message_parser
 import base64
+from api_maps import get_map_data_uri, ll
+from api_youtude import youtube_https, channel_by_name
+
+chit_cod = ['=geo', '=video', '=channel']   # чит коды для работы с мессенджером
 
 
 class UserResource(Resource):
@@ -140,8 +144,13 @@ class MessageResource(Resource):
             sender = session.get(User, msg.sender_id)
 
             picture_uri = None
-            if msg.picture:
+
+            # picture_uri = get_map_data_uri('Москва')
+            if msg.coordinates:
+                picture_uri = f"data:image/jpeg;base64,{base64.b64encode(get_map_data_uri(msg.coordinates)).decode()}"
+            elif msg.picture:
                 picture_uri = f"data:image/jpeg;base64,{base64.b64encode(msg.picture).decode()}"
+
 
             result.append({
                 'id': msg.id,
@@ -163,12 +172,28 @@ class MessageResource(Resource):
             if pic_str.startswith('data:'):
                 pic_str = pic_str.split(',', 1)[1]
             picture_bytes = base64.b64decode(pic_str)
+
+        test_mass = args['content']
+        print(test_mass)
+        ll_uri_map = None
+        text = None
+        for cod in chit_cod:
+            if test_mass.startswith(cod):
+                if cod == '=geo':   # юзер-чит-код по сообщению своей геопозиции
+                    ll_uri_map = ll(test_mass)
+                elif cod == '=video':
+                    text = youtube_https(test_mass)
+                elif cod == '=channel':
+                    x = channel_by_name(test_mass)
+                    if x:
+                        text = f'{x['title']} - {x['url']}'
+
         message = Message(
-            content=args['content'],
+            content=text if text else args['content'],
             chat_id=chat_id,
             sender_id=args['sender_id'],
-            picture=picture_bytes,
-            coordinates=args['coordinates']
+            picture=picture_bytes ,
+            coordinates=ll_uri_map
         )
         session.add(message)
         session.commit()

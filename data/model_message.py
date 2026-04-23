@@ -11,7 +11,7 @@ class Message(SqlAlchemyBase, SerializerMixin):
     sender_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'), nullable=True)
     timestamp = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.datetime.now, index=True)
     picture = sqlalchemy.Column(sqlalchemy.LargeBinary, nullable=True)
-    coordinates = sqlalchemy.Column(sqlalchemy.String, nullable=True)
+    coordinates = sqlalchemy.Column(sqlalchemy.LargeBinary, nullable=True)
 
     def __repr__(self):
         return f'<Message> {self.id} for Chat {self.chat_id}'

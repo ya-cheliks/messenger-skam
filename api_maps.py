@@ -1,5 +1,4 @@
 import base64
-
 import requests
 
 
@@ -44,4 +43,4 @@ def ll(test_mass):
 
 if __name__ == '__main__':
     name_geo = 'Москва'
-    print(getImage(name_geo).content)
+    print(get_map_data_uri(name_geo).content)

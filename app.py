@@ -39,7 +39,10 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         session = db_session.create_session()
-        return session.get(User, user_id)
+        try:
+            return session.get(User, user_id)
+        finally:
+            session.close()
 
     app.register_blueprint(auth)
 

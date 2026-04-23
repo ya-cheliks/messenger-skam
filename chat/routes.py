@@ -7,6 +7,9 @@ from data.model_user import User
 from data.model_chat import Chat
 from data.model_message import Message
 import base64
+import re
+from api_maps import materic, get_map_data_uri
+from api_youtude import youtube_https, channel_by_name
 
 
 @chat.route('/')
@@ -28,6 +31,7 @@ def index():
 @chat.route('/<int:chat_id>')
 @login_required
 def view(chat_id):
+    """Отображение чата с сообщениями"""
     session = db_session.create_session()
     try:
         chat_obj = session.get(Chat, chat_id)
@@ -63,28 +67,68 @@ def view(chat_id):
 @chat.route('/<int:chat_id>/send', methods=['POST'])
 @login_required
 def send_message(chat_id):
+    """Отправка сообщения с поддержкой фото и команд"""
     content = request.form.get('content', '').strip()
     photo_file = request.files.get('photo')
 
     picture_bytes = None
-    if photo_file and photo_file.filename:
-        if photo_file.content_type.startswith('image/'):
-            picture_bytes = photo_file.read()
-        else:
-            flash('Поддерживаются только изображения', 'warning')
-            return redirect(url_for('chat.view', chat_id=chat_id))
+    if photo_file and photo_file.filename and photo_file.content_type.startswith('image/'):
+        picture_bytes = photo_file.read()
 
     if not content and not picture_bytes:
+        flash('Сообщение не может быть пустым', 'warning')
+        return redirect(url_for('chat.view', chat_id=chat_id))
+
+    final_content = content
+    map_picture = None
+
+    # Команда loc:... → карта Яндекса
+    loc_match = re.search(r'loc:([^\s]+)', content)
+    if loc_match:
+        location_name = loc_match.group(1)
+        try:
+            coords = materic(location_name)
+            if coords:
+                map_picture = get_map_data_uri(coords)
+                final_content = content.replace(f'loc:{location_name}', f'📍 {location_name}').strip()
+        except Exception as e:
+            flash(f'Не удалось загрузить карту: {str(e)}', 'warning')
+
+    # Команда vid:... → видео YouTube
+    vid_match = re.search(r'vid:([^\s]+)', content)
+    if vid_match:
+        video_query = vid_match.group(1)
+        try:
+            video_url = youtube_https(f'vid:{video_query}')
+            if video_url:
+                final_content = content.replace(f'vid:{video_query}', f'🎥 {video_url}').strip()
+        except Exception as e:
+            flash(f'Не удалось найти видео: {str(e)}', 'warning')
+
+    # Команда chan:... → канал YouTube
+    chan_match = re.search(r'chan:([^\s]+)', content)
+    if chan_match:
+        channel_query = chan_match.group(1)
+        try:
+            channel_info = channel_by_name(f'chan:{channel_query}')
+            if channel_info and channel_info.get('url'):
+                final_content = content.replace(f'chan:{channel_query}', f'📺 {channel_info["url"]}').strip()
+        except Exception as e:
+            flash(f'Не удалось найти канал: {str(e)}', 'warning')
+
+    # Финальная проверка
+    if not final_content and not picture_bytes and not map_picture:
         flash('Сообщение не может быть пустым', 'warning')
         return redirect(url_for('chat.view', chat_id=chat_id))
 
     session = db_session.create_session()
     try:
         new_msg = Message(
-            content=content,
+            content=final_content,
             chat_id=chat_id,
             sender_id=current_user.id,
-            picture=picture_bytes
+            picture=map_picture or picture_bytes,
+            coordinates=None
         )
         session.add(new_msg)
         session.commit()

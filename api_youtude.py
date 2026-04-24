@@ -19,8 +19,10 @@ def youtube_https(title):
         response = requests.get(url, params=params).json()
         video_id = response["items"][0]["id"]["videoId"]
         video_url = f"https://www.youtube.com/watch?v={video_id}"
+        print()
     except Exception:
         video_url = None
+        print("aaaaaa")
     finally:
         return video_url
 

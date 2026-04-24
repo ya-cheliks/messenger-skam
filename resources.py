@@ -173,21 +173,24 @@ class MessageResource(Resource):
                     pic_str = pic_str.split(',', 1)[1]
                 picture_bytes = base64.b64decode(pic_str)
 
-        test_mass = args['content']
-        print(test_mass)
-        ll_uri_map = None
-        text = None
-        for cod in chit_cod:
-            if test_mass.startswith(cod):
-                if cod == '=geo':   # юзер-чит-код по сообщению своей геопозиции
-                    ll_uri_map = ll(test_mass)
-                elif cod == '=video':
-                    text = youtube_https(test_mass)
-                elif cod == '=channel':
-                    x = channel_by_name(test_mass)
-                    if x:
-                        text = f'{x["title"]} - {x["url"]}'
+            test_mass = args['content']
+            print(test_mass)
+            ll_uri_map = None
+            text = None
+            # for cod in chit_cod:
+            #     if test_mass.startswith(cod):
+            if test_mass.startswith('=geo'):   # юзер-чит-код по сообщению своей геопозиции
+                ll_uri_map = ll(test_mass)
 
+            elif test_mass.startswith('=video'):
+                text = youtube_https(test_mass)
+                print("cat", text)
+
+            elif test_mass.startswith('=channel'):
+                x = channel_by_name(test_mass)
+                if x:
+                    text = f'{x["title"]} - {x["url"]}'
+            print("cat2", text)
             message = Message(
                 content=text if text else args['content'],
                 chat_id=chat_id,

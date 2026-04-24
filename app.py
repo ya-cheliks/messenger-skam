@@ -21,6 +21,9 @@ login_manager.login_view = 'auth.login'
 
 def create_app():
     app = Flask(__name__)
+    app.config['pool_size'] = 11
+    app.config['max_overflow'] = 6
+    app.config['time_out'] = 100
     app.config.from_object(Config)
 
     api = Api(app)
